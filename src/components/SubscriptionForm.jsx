@@ -103,7 +103,7 @@ function SubscriptionForm({ onAddSubscription, onUpdateSubscription, initialData
           </select>
         </div>
         <div>
-          <label htmlFor="subPaymentDayModal" className={labelBaseClass}>Дата следующего платежа</label>
+          <label htmlFor="subPaymentDayModal" className={labelBaseClass}>Дата старта подписки</label>
           <DatePicker
             selected={paymentDate}
             onChange={(date) => setPaymentDate(date)}
@@ -116,6 +116,8 @@ function SubscriptionForm({ onAddSubscription, onUpdateSubscription, initialData
             showYearDropdown
             dropdownMode="select"
             required
+            popperClassName="z-[9999]"
+            portalId="root-portal"
           />
         </div>
       </div>
