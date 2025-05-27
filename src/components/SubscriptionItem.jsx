@@ -22,7 +22,22 @@ function SubscriptionItem({ subscription, onDeleteSubscription, onEditSubscripti
           </div>
           <div className="flex items-center">
             <CalendarDaysIcon className="h-4 w-4 mr-1 text-slate-500" />
-            <span>День оплаты: {subscription.paymentDay}</span>
+            <span>
+              {subscription.cycle === 'annually'
+                ? (() => {
+                    let date;
+                    if (subscription.fullPaymentDate) {
+                      date = new Date(subscription.fullPaymentDate);
+                    } else {
+                      // fallback: текущий год, месяц и paymentDay
+                      const today = new Date();
+                      date = new Date(today.getFullYear(), today.getMonth(), subscription.paymentDay);
+                    }
+                    return `Дата оплаты: ${date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })} каждого года`;
+                  })()
+                : `День оплаты: ${subscription.paymentDay} число каждого месяца`
+              }
+            </span>
           </div>
         </div>
       </div>
