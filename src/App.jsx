@@ -29,6 +29,7 @@ function App() {
   });
 
   const [isModalOpen, setIsModalOpen] = useState(false); // <--- Состояние для модалки
+  const [editingSubscription, setEditingSubscription] = useState(null);
 
   useEffect(() => {
     localStorage.setItem('subscriptions', JSON.stringify(subscriptions));
@@ -41,6 +42,28 @@ function App() {
 
   const handleDeleteSubscription = (idToDelete) => {
     setSubscriptions(prevSubs => prevSubs.filter(sub => sub.id !== idToDelete));
+  };
+
+  const handleOpenEditModal = (subscription) => {
+    setEditingSubscription(subscription);
+    setIsModalOpen(true);
+  };
+
+  const handleUpdateSubscription = (id, updatedSubData) => {
+    setSubscriptions(prevSubs => prevSubs.map(sub => sub.id === id ? { ...sub, ...updatedSubData } : sub));
+    setIsModalOpen(false);
+    setEditingSubscription(null);
+  };
+
+  // Добавим обработчик импорта в App
+  const handleImportSubscriptions = (importedSubs) => {
+    setSubscriptions(prev => [
+      ...prev,
+      ...importedSubs.filter(
+        imported => !prev.some(sub => sub.name === imported.name && sub.cost === imported.cost && sub.paymentDay === imported.paymentDay)
+      )
+    ]);
+    // localStorage обновится автоматически через useEffect
   };
 
   const totalMonthlyCost = useMemo(() => {
@@ -95,6 +118,7 @@ function App() {
             <SubscriptionList
               subscriptions={subscriptions}
               onDeleteSubscription={handleDeleteSubscription}
+              onEditSubscription={handleOpenEditModal}
             />
              {subscriptions.length > 0 && (
                 <p className="text-xs text-slate-500 mt-6 text-right">
@@ -111,7 +135,7 @@ function App() {
             <p className="text-slate-600 mb-4">
               Экспортируйте данные для вашего Telegram-бота, чтобы получать своевременные напоминания о предстоящих платежах.
             </p>
-            <ExportData subscriptions={subscriptions} />
+            <ExportData subscriptions={subscriptions} onImport={handleImportSubscriptions} />
           </section>
         </main>
 
@@ -123,10 +147,18 @@ function App() {
       {/* Модальное окно для добавления подписки */}
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Добавить новую подписку"
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingSubscription(null);
+        }}
+        title={editingSubscription ? "Редактировать подписку" : "Добавить новую подписку"}
       >
-        <SubscriptionForm onAddSubscription={handleAddSubscription} />
+        <SubscriptionForm
+          onAddSubscription={handleAddSubscription}
+          onUpdateSubscription={handleUpdateSubscription}
+          initialData={editingSubscription}
+          isEditMode={!!editingSubscription}
+        />
       </Modal>
     </div>
   );

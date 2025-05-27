@@ -2,7 +2,7 @@ import React from 'react';
 import SubscriptionItem from './SubscriptionItem';
 import { DocumentMagnifyingGlassIcon } from '@heroicons/react/24/outline';
 
-function SubscriptionList({ subscriptions, onDeleteSubscription }) {
+function SubscriptionList({ subscriptions, onDeleteSubscription, onEditSubscription }) {
   if (subscriptions.length === 0) {
     return (
       <div className="text-center py-12 px-6 border-2 border-dashed border-slate-300 rounded-lg">
@@ -20,6 +20,7 @@ function SubscriptionList({ subscriptions, onDeleteSubscription }) {
           key={sub.id}
           subscription={sub}
           onDeleteSubscription={onDeleteSubscription}
+          onEditSubscription={onEditSubscription}
         />
       ))}
     </ul>

@@ -1,7 +1,7 @@
 import React from 'react';
-import { CalendarDaysIcon, TrashIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline'; // Используем outline иконки
+import { CalendarDaysIcon, TrashIcon, CurrencyDollarIcon, PencilSquareIcon } from '@heroicons/react/24/outline';
 
-function SubscriptionItem({ subscription, onDeleteSubscription }) {
+function SubscriptionItem({ subscription, onDeleteSubscription, onEditSubscription }) {
   const cycleText = subscription.cycle === 'annually' ? 'год' : 'мес.';
   
   let currencySymbol = subscription.currency;
@@ -26,13 +26,22 @@ function SubscriptionItem({ subscription, onDeleteSubscription }) {
           </div>
         </div>
       </div>
-      <button
-        onClick={() => onDeleteSubscription(subscription.id)}
-        className="p-2 rounded-md text-brand-danger hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-brand-danger focus:ring-opacity-50 transition-colors duration-150 self-start sm:self-center"
-        aria-label={`Удалить подписку ${subscription.name}`}
-      >
-        <TrashIcon className="h-5 w-5" />
-      </button>
+      <div className="flex items-center space-x-2 self-start sm:self-center">
+        <button
+          onClick={() => onEditSubscription(subscription)}
+          className="p-2 rounded-md text-sky-600 hover:bg-sky-100 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-opacity-50 transition-colors duration-150"
+          aria-label={`Редактировать подписку ${subscription.name}`}
+        >
+          <PencilSquareIcon className="h-5 w-5" />
+        </button>
+        <button
+          onClick={() => onDeleteSubscription(subscription.id)}
+          className="p-2 rounded-md text-brand-danger hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-brand-danger focus:ring-opacity-50 transition-colors duration-150"
+          aria-label={`Удалить подписку ${subscription.name}`}
+        >
+          <TrashIcon className="h-5 w-5" />
+        </button>
+      </div>
     </li>
   );
 }

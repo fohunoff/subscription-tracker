@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { ArrowDownTrayIcon, ClipboardDocumentCheckIcon } from '@heroicons/react/24/outline';
+import { ArrowDownTrayIcon, ClipboardDocumentCheckIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
 
-function ExportData({ subscriptions }) {
+function ExportData({ subscriptions, onImport }) {
   const [exportedJson, setExportedJson] = useState('');
   const [copied, setCopied] = useState(false);
+  const fileInputRef = React.useRef();
 
   const handleExport = () => {
     if (subscriptions.length === 0) {
@@ -33,6 +34,31 @@ function ExportData({ subscriptions }) {
       });
   };
 
+  const handleImport = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const imported = JSON.parse(event.target.result);
+        // Преобразуем поля к формату приложения
+        const normalized = imported.map(sub => ({
+          name: sub.name,
+          cost: sub.cost,
+          currency: sub.currency,
+          cycle: sub.cycle,
+          paymentDay: sub.payment_day,
+          fullPaymentDate: sub.next_payment_date || null,
+          id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2),
+        }));
+        onImport(normalized);
+      } catch (err) {
+        alert('Ошибка при импорте: некорректный JSON');
+      }
+    };
+    reader.readAsText(file);
+  };
+
   return (
     <div className="mt-6 space-y-4">
       <button
@@ -43,6 +69,22 @@ function ExportData({ subscriptions }) {
         <ArrowDownTrayIcon className="h-5 w-5" />
         Сформировать JSON для бота
       </button>
+
+      <button
+        type="button"
+        onClick={() => fileInputRef.current && fileInputRef.current.click()}
+        className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 px-5 rounded-lg shadow-sm hover:shadow-md transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-opacity-75"
+      >
+        <ArrowUpTrayIcon className="h-5 w-5" />
+        Импортировать JSON
+      </button>
+      <input
+        type="file"
+        accept="application/json"
+        ref={fileInputRef}
+        onChange={handleImport}
+        className="hidden"
+      />
 
       {exportedJson && (
         <div className="relative">
