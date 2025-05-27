@@ -1,9 +1,16 @@
 [
   {
-    "name": "ыаыцуц",
-    "cost": 2134,
+    "name": "Хостинг firstVDS",
+    "cost": 690,
     "currency": "RUB",
-    "payment_day": 30,
+    "payment_day": 29,
     "cycle": "monthly"
+  },
+  {
+    "name": "Claude",
+    "cost": 180,
+    "currency": "USD",
+    "payment_day": 1,
+    "cycle": "annually"
   }
 ]

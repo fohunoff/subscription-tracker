@@ -20,6 +20,17 @@ const AppIcon = ({ className = "w-10 h-10 text-brand-primary" }) => (
   </svg>
 );
 
+const FALLBACK_CURRENCY_RATES = {
+  RUB: 1,
+  USD: 90,
+  EUR: 98,
+};
+const CURRENCY_SYMBOLS = {
+  RUB: '₽',
+  USD: '$',
+  EUR: '€',
+};
+
 
 function App() {
   const [subscriptions, setSubscriptions] = useState(() => {
@@ -34,6 +45,8 @@ function App() {
 
   const [isModalOpen, setIsModalOpen] = useState(false); // <--- Состояние для модалки
   const [editingSubscription, setEditingSubscription] = useState(null);
+  const [currencyRates, setCurrencyRates] = useState(FALLBACK_CURRENCY_RATES);
+  const [isRatesLoading, setIsRatesLoading] = useState(false);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -47,6 +60,40 @@ function App() {
     window.addEventListener('show-toast', handleToastEvent);
     return () => window.removeEventListener('show-toast', handleToastEvent);
   }, [showToast]);
+
+  const fetchRates = async () => {
+    setIsRatesLoading(true);
+    try {
+      const res = await fetch('https://api.exchangerate.host/latest?base=RUB&symbols=USD,EUR');
+      const data = await res.json();
+
+      console.log('Fetched rates:', data);
+
+      if (data && data.error) {
+        showToast(data.error.info || 'Что-то пошло не так', 'error');
+      }
+
+      if (data && data.rates) {
+        setCurrencyRates({
+          RUB: 1,
+          USD: 1 / data.rates.USD,
+          EUR: 1 / data.rates.EUR,
+        });
+        console.log('SHOW TOAST');
+        
+        showToast('Курсы валют обновлены', 'success');
+      }
+    } catch {
+      showToast('Ошибка обновления курсов валют', 'error');
+    } finally {
+      setIsRatesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRates();
+    // eslint-disable-next-line
+  }, []);
 
   const handleAddSubscription = (newSub) => {
     setSubscriptions(prevSubs => [...prevSubs, { ...newSub, id: uuidv4() }]);
@@ -88,9 +135,10 @@ function App() {
       if (sub.cycle === 'annually') {
         monthlyCost = monthlyCost / 12;
       }
-      return total + monthlyCost;
+      const rate = currencyRates[sub.currency] || 1;
+      return total + monthlyCost * rate;
     }, 0);
-  }, [subscriptions]);
+  }, [subscriptions, currencyRates]);
 
   return (
     <div className="min-h-screen bg-slate-100 font-sans">
@@ -119,6 +167,7 @@ function App() {
                       <span className="text-sm text-slate-500 block">Итого в месяц:</span>
                       <p className="text-3xl font-bold text-brand-primary">
                           {totalMonthlyCost.toFixed(2)} <span className="text-xl font-medium text-slate-600">RUB</span>
+                          <button onClick={fetchRates} disabled={isRatesLoading} className="ml-2 text-xs text-sky-600 underline disabled:opacity-50">{isRatesLoading ? 'Обновление...' : 'Обновить курсы'}</button>
                       </p>
                   </div>
                 )}
