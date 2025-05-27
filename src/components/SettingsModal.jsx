@@ -47,6 +47,7 @@ const SettingsModal = ({
           <option value="RUB">RUB (₽)</option>
           <option value="USD">USD ($)</option>
           <option value="EUR">EUR (€)</option>
+          <option value="RSD">RSD (дин.)</option>
         </select>
         <div className="mt-1 text-xs text-slate-400">Итоговая сумма будет показана в выбранной валюте</div>
       </div>

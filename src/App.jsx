@@ -26,11 +26,13 @@ const FALLBACK_CURRENCY_RATES = {
   RUB: 1,
   USD: 90,
   EUR: 98,
+  RSD: 0.83,
 };
 const CURRENCY_SYMBOLS = {
   RUB: '₽',
   USD: '$',
   EUR: '€',
+  RSD: 'дин.',
 };
 
 
@@ -93,7 +95,7 @@ function App() {
   const fetchRates = async () => {
     setIsRatesLoading(true);
     try {
-      const res = await fetch('https://api.exchangerate.host/latest?base=RUB&symbols=USD,EUR');
+      const res = await fetch('https://api.exchangerate.host/latest?base=RUB&symbols=USD,EUR,RSD');
       const data = await res.json();
 
       if (data && data.error) {
@@ -105,6 +107,7 @@ function App() {
           RUB: 1,
           USD: 1 / data.rates.USD,
           EUR: 1 / data.rates.EUR,
+          RSD: 1 / data.rates.RSD,
         });
         const now = new Date();
         setLastRatesUpdate(now);
@@ -176,7 +179,7 @@ function App() {
   }, [subscriptions, currencyRates, baseCurrency]);
 
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-slate-900 font-sans transition-colors">
+    <div className="min-h-screen flex flex-col bg-slate-100 dark:bg-slate-900 font-sans transition-colors">
       {/* Иконка шестерёнки */}
       <button
         onClick={() => setIsSettingsOpen(true)}
@@ -187,19 +190,19 @@ function App() {
         <Cog6ToothIcon className="h-7 w-7 text-slate-600" />
       </button>
 
-      <div className="container mx-auto px-4 py-8 md:py-12 max-w-4xl">
+      <div className="container mx-auto px-4 py-8 md:py-12 max-w-4xl flex-1 flex flex-col">
         
         <header className="mb-10 flex flex-col items-center text-center">
-          <AppIcon className="w-16 h-16 mb-4" />
+          {/* <AppIcon className="w-16 h-16 mb-4" /> */}
           <h1 className="text-4xl md:text-5xl font-bold text-slate-800 tracking-tight">
-            Трекер Подписок
+            Трекер расходов
           </h1>
           <p className="mt-2 text-lg text-slate-600">
-            Управляйте своими расходами на подписки легко и эффективно.
+            Управляйте своими расходами легко и эффективно.
           </p>
         </header>
 
-        <main className="space-y-8">
+        <main className="space-y-8 flex-1">
           {/* СПОЙЛЕР секция списка подписок и кнопка добавления */}
           <section aria-labelledby="subscriptions-list-heading" className="bg-white shadow-xl rounded-xl p-6 md:p-8">
             {/* Заголовок и кнопка сворачивания */}
@@ -255,8 +258,7 @@ function App() {
             <ExportData subscriptions={subscriptions} onImport={handleImportSubscriptions} />
           </section>
         </main>
-
-        <footer className="mt-16 text-center text-sm text-slate-500">
+        <footer className="mt-16 text-center text-sm text-slate-500 mb-2 sm:mb-4 md:mb-6 lg:mb-8 flex-shrink-0">
           <p>© {new Date().getFullYear()} Трекер Подписок. Разработано с Tailwind CSS.</p>
         </footer>
       </div>
