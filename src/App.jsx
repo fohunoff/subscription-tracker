@@ -49,11 +49,32 @@ function App() {
   const [currencyRates, setCurrencyRates] = useState(FALLBACK_CURRENCY_RATES);
   const [isRatesLoading, setIsRatesLoading] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [baseCurrency, setBaseCurrency] = useState(() => {
+    const saved = localStorage.getItem('baseCurrency');
+    return saved || 'RUB';
+  });
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem('theme');
+    return saved === 'dark' ? 'dark' : 'light';
+  });
   const { showToast } = useToast();
 
   useEffect(() => {
     localStorage.setItem('subscriptions', JSON.stringify(subscriptions));
   }, [subscriptions]);
+
+  useEffect(() => {
+    localStorage.setItem('baseCurrency', baseCurrency);
+  }, [baseCurrency]);
+
+  useEffect(() => {
+    localStorage.setItem('theme', theme);
+    if (theme === 'dark') {
+      document.body.classList.add('dark');
+    } else {
+      document.body.classList.remove('dark');
+    }
+  }, [theme]);
 
   useEffect(() => {
     function handleToastEvent(e) {
@@ -132,7 +153,8 @@ function App() {
   };
 
   const totalMonthlyCost = useMemo(() => {
-    return subscriptions.reduce((total, sub) => {
+    // Сумма в RUB
+    const totalRub = subscriptions.reduce((total, sub) => {
       let monthlyCost = sub.cost;
       if (sub.cycle === 'annually') {
         monthlyCost = monthlyCost / 12;
@@ -140,10 +162,13 @@ function App() {
       const rate = currencyRates[sub.currency] || 1;
       return total + monthlyCost * rate;
     }, 0);
-  }, [subscriptions, currencyRates]);
+    // Конвертируем в выбранную валюту
+    const rateToBase = currencyRates[baseCurrency] || 1;
+    return totalRub / rateToBase;
+  }, [subscriptions, currencyRates, baseCurrency]);
 
   return (
-    <div className="min-h-screen bg-slate-100 font-sans">
+    <div className="min-h-screen bg-slate-100 dark:bg-slate-900 font-sans transition-colors">
       {/* Иконка шестерёнки */}
       <button
         onClick={() => setIsSettingsOpen(true)}
@@ -178,8 +203,7 @@ function App() {
                   <div className="text-left sm:text-right order-2 sm:order-1">
                       <span className="text-sm text-slate-500 block">Итого в месяц:</span>
                       <p className="text-3xl font-bold text-brand-primary">
-                          {totalMonthlyCost.toFixed(2)} <span className="text-xl font-medium text-slate-600">RUB</span>
-                          <button onClick={fetchRates} disabled={isRatesLoading} className="ml-2 text-xs text-sky-600 underline disabled:opacity-50">{isRatesLoading ? 'Обновление...' : 'Обновить курсы'}</button>
+                          {totalMonthlyCost.toFixed(2)} <span className="text-xl font-medium text-slate-600">{CURRENCY_SYMBOLS[baseCurrency] || baseCurrency}</span>
                       </p>
                   </div>
                 )}
@@ -257,6 +281,41 @@ function App() {
             <div className="mt-2 text-xs text-slate-500">
               Текущий курс: 1 USD = {(1 / currencyRates.USD).toFixed(2)} RUB, 1 EUR = {(1 / currencyRates.EUR).toFixed(2)} RUB
             </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Базовая валюта для расчёта</label>
+            <select
+              value={baseCurrency}
+              onChange={e => setBaseCurrency(e.target.value)}
+              className="block w-full max-w-xs rounded-lg border-slate-300 p-2 shadow-sm focus:border-brand-primary focus:outline-none focus:ring focus:ring-brand-primary focus:ring-opacity-90"
+            >
+              <option value="RUB">RUB (₽)</option>
+              <option value="USD">USD ($)</option>
+              <option value="EUR">EUR (€)</option>
+            </select>
+            <div className="mt-1 text-xs text-slate-400">Итоговая сумма будет показана в выбранной валюте</div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">Тема оформления</label>
+            <div className="flex items-center gap-4">
+              <button
+                type="button"
+                onClick={() => setTheme('light')}
+                className={`py-2 px-4 rounded-lg font-medium border transition-colors ${theme === 'light' ? 'bg-brand-primary text-white border-brand-primary' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-700'}`}
+                aria-pressed={theme === 'light'}
+              >
+                Светлая
+              </button>
+              <button
+                type="button"
+                onClick={() => setTheme('dark')}
+                className={`py-2 px-4 rounded-lg font-medium border transition-colors ${theme === 'dark' ? 'bg-brand-primary text-white border-brand-primary' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-700'}`}
+                aria-pressed={theme === 'dark'}
+              >
+                Тёмная
+              </button>
+            </div>
+            <div className="mt-1 text-xs text-slate-400 dark:text-slate-500">Выберите внешний вид приложения</div>
           </div>
         </div>
       </Modal>
