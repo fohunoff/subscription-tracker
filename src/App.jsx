@@ -5,14 +5,18 @@ import SubscriptionList from './components/SubscriptionList';
 import ExportData from './components/ExportData';
 import Modal from './components/Modal'; // <--- Импортируем Modal
 import { PlusIcon } from '@heroicons/react/24/solid'; // Для кнопки открытия модалки
+import { useToast } from './components/ToastProvider';
 
 const AppIcon = ({ className = "w-10 h-10 text-brand-primary" }) => (
-  <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <rect x="15" y="35" width="70" height="45" rx="5" className="text-blue-300" fill="currentColor"/>
-    <rect x="20" y="30" width="70" height="45" rx="5" className="text-blue-400" fill="currentColor" stroke="#FFFFFF" strokeWidth="3"/>
-    <rect x="25" y="25" width="70" height="45" rx="5" className="text-brand-primary" fill="currentColor" stroke="#FFFFFF" strokeWidth="3"/>
-    <line x1="35" y1="55" x2="55" y2="55" stroke="white" strokeWidth="4" strokeLinecap="round"/>
-    <line x1="35" y1="65" x2="65" y2="65" stroke="white" strokeWidth="4" strokeLinecap="round"/>
+  <svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="15" y="15" width="70" height="70" rx="8" fill="#2563EB"/>
+    <rect x="15" y="15" width="70" height="20" rx="8" ry="8" fill="#1D4ED8"/>
+    <circle cx="30" cy="25" r="3" fill="white"/>
+    <circle cx="40" cy="25" r="3" fill="white"/>
+    <circle cx="50" cy="25" r="3" fill="white"/>
+    <rect x="30" y="45" width="40" height="30" rx="4" fill="#FFFF00"/>
+    <circle cx="50" cy="60" r="8" fill="#FFFFFF"/>
+    <path d="M46 60 L50 64 L56 58" stroke="#2563EB" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>
 );
 
@@ -30,18 +34,29 @@ function App() {
 
   const [isModalOpen, setIsModalOpen] = useState(false); // <--- Состояние для модалки
   const [editingSubscription, setEditingSubscription] = useState(null);
+  const { showToast } = useToast();
 
   useEffect(() => {
     localStorage.setItem('subscriptions', JSON.stringify(subscriptions));
   }, [subscriptions]);
 
+  useEffect(() => {
+    function handleToastEvent(e) {
+      if (e.detail && e.detail.msg) showToast(e.detail.msg, e.detail.type);
+    }
+    window.addEventListener('show-toast', handleToastEvent);
+    return () => window.removeEventListener('show-toast', handleToastEvent);
+  }, [showToast]);
+
   const handleAddSubscription = (newSub) => {
     setSubscriptions(prevSubs => [...prevSubs, { ...newSub, id: uuidv4() }]);
-    setIsModalOpen(false); // <--- Закрываем модалку после добавления
+    setIsModalOpen(false);
+    showToast('Подписка добавлена!', 'success');
   };
 
   const handleDeleteSubscription = (idToDelete) => {
     setSubscriptions(prevSubs => prevSubs.filter(sub => sub.id !== idToDelete));
+    showToast('Подписка удалена', 'success');
   };
 
   const handleOpenEditModal = (subscription) => {
@@ -53,6 +68,7 @@ function App() {
     setSubscriptions(prevSubs => prevSubs.map(sub => sub.id === id ? { ...sub, ...updatedSubData } : sub));
     setIsModalOpen(false);
     setEditingSubscription(null);
+    showToast('Изменения сохранены', 'success');
   };
 
   // Добавим обработчик импорта в App
@@ -63,7 +79,7 @@ function App() {
         imported => !prev.some(sub => sub.name === imported.name && sub.cost === imported.cost && sub.paymentDay === imported.paymentDay)
       )
     ]);
-    // localStorage обновится автоматически через useEffect
+    showToast('Подписки импортированы!', 'success');
   };
 
   const totalMonthlyCost = useMemo(() => {

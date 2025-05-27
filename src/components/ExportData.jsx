@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowDownTrayIcon, ClipboardDocumentCheckIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
 
 function ExportData({ subscriptions, onImport }) {
@@ -18,7 +18,10 @@ function ExportData({ subscriptions, onImport }) {
     }));
     const jsonString = JSON.stringify(botData, null, 2);
     setExportedJson(jsonString);
-    setCopied(false); // Сбросить состояние "скопировано" при новом экспорте
+    setCopied(false);
+    if (typeof window !== 'undefined' && window.showToast) {
+      window.showToast('Подписки экспортированы!', 'success');
+    }
   };
 
   const handleCopyToClipboard = () => {
@@ -59,12 +62,22 @@ function ExportData({ subscriptions, onImport }) {
     reader.readAsText(file);
   };
 
+  useEffect(() => {
+    // Глобальный хак для тоста из ExportData
+    if (typeof window !== 'undefined') {
+      window.showToast = (msg, type) => {
+        const event = new CustomEvent('show-toast', { detail: { msg, type } });
+        window.dispatchEvent(event);
+      };
+    }
+  }, []);
+
   return (
     <div className="mt-6 space-y-4">
       <button
         onClick={handleExport}
         disabled={subscriptions.length === 0}
-        className="inline-flex items-center gap-2 bg-sky-600 hover:bg-sky-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-medium py-2.5 px-5 rounded-lg shadow-sm hover:shadow-md transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-opacity-75"
+        className="inline-flex mr-4 items-center gap-2 bg-sky-600 hover:bg-sky-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-medium py-2.5 px-5 rounded-lg shadow-sm hover:shadow-md transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-opacity-75"
       >
         <ArrowDownTrayIcon className="h-5 w-5" />
         Сформировать JSON для бота
