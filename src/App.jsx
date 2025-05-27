@@ -4,6 +4,7 @@ import SubscriptionForm from './components/SubscriptionForm';
 import SubscriptionList from './components/SubscriptionList';
 import ExportData from './components/ExportData';
 import Modal from './components/Modal'; // <--- Импортируем Modal
+import SettingsModal from './components/SettingsModal';
 import { PlusIcon } from '@heroicons/react/24/solid'; // Для кнопки открытия модалки
 import { Cog6ToothIcon } from '@heroicons/react/24/outline';
 import { useToast } from './components/ToastProvider';
@@ -57,6 +58,10 @@ function App() {
     const saved = localStorage.getItem('theme');
     return saved === 'dark' ? 'dark' : 'light';
   });
+  const [lastRatesUpdate, setLastRatesUpdate] = useState(() => {
+    const saved = localStorage.getItem('lastRatesUpdate');
+    return saved ? new Date(saved) : null;
+  });
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -90,8 +95,6 @@ function App() {
       const res = await fetch('https://api.exchangerate.host/latest?base=RUB&symbols=USD,EUR');
       const data = await res.json();
 
-      console.log('Fetched rates:', data);
-
       if (data && data.error) {
         showToast(data.error.info || 'Что-то пошло не так', 'error');
       }
@@ -102,8 +105,9 @@ function App() {
           USD: 1 / data.rates.USD,
           EUR: 1 / data.rates.EUR,
         });
-        console.log('SHOW TOAST');
-        
+        const now = new Date();
+        setLastRatesUpdate(now);
+        localStorage.setItem('lastRatesUpdate', now.toISOString());
         showToast('Курсы валют обновлены', 'success');
       }
     } catch {
@@ -263,62 +267,18 @@ function App() {
       </Modal>
 
       {/* Модальное окно для настроек */}
-      <Modal
+      <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
-        title="Настройки"
-      >
-        <div className="space-y-4">
-          <div>
-            <span className="block text-sm font-medium text-slate-700 mb-2">Курсы валют</span>
-            <button
-              onClick={fetchRates}
-              disabled={isRatesLoading}
-              className="inline-flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white font-medium py-2 px-4 rounded-lg shadow-sm transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-opacity-75 disabled:opacity-50"
-            >
-              {isRatesLoading ? 'Обновление...' : 'Обновить курсы'}
-            </button>
-            <div className="mt-2 text-xs text-slate-500">
-              Текущий курс: 1 USD = {(1 / currencyRates.USD).toFixed(2)} RUB, 1 EUR = {(1 / currencyRates.EUR).toFixed(2)} RUB
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Базовая валюта для расчёта</label>
-            <select
-              value={baseCurrency}
-              onChange={e => setBaseCurrency(e.target.value)}
-              className="block w-full max-w-xs rounded-lg border-slate-300 p-2 shadow-sm focus:border-brand-primary focus:outline-none focus:ring focus:ring-brand-primary focus:ring-opacity-90"
-            >
-              <option value="RUB">RUB (₽)</option>
-              <option value="USD">USD ($)</option>
-              <option value="EUR">EUR (€)</option>
-            </select>
-            <div className="mt-1 text-xs text-slate-400">Итоговая сумма будет показана в выбранной валюте</div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">Тема оформления</label>
-            <div className="flex items-center gap-4">
-              <button
-                type="button"
-                onClick={() => setTheme('light')}
-                className={`py-2 px-4 rounded-lg font-medium border transition-colors ${theme === 'light' ? 'bg-brand-primary text-white border-brand-primary' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-700'}`}
-                aria-pressed={theme === 'light'}
-              >
-                Светлая
-              </button>
-              <button
-                type="button"
-                onClick={() => setTheme('dark')}
-                className={`py-2 px-4 rounded-lg font-medium border transition-colors ${theme === 'dark' ? 'bg-brand-primary text-white border-brand-primary' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-700'}`}
-                aria-pressed={theme === 'dark'}
-              >
-                Тёмная
-              </button>
-            </div>
-            <div className="mt-1 text-xs text-slate-400 dark:text-slate-500">Выберите внешний вид приложения</div>
-          </div>
-        </div>
-      </Modal>
+        currencyRates={currencyRates}
+        isRatesLoading={isRatesLoading}
+        fetchRates={fetchRates}
+        lastRatesUpdate={lastRatesUpdate}
+        baseCurrency={baseCurrency}
+        setBaseCurrency={setBaseCurrency}
+        theme={theme}
+        setTheme={setTheme}
+      />
     </div>
   );
 }
