@@ -62,6 +62,7 @@ function App() {
     const saved = localStorage.getItem('lastRatesUpdate');
     return saved ? new Date(saved) : null;
   });
+  const [isSubsOpen, setIsSubsOpen] = useState(true);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -129,6 +130,9 @@ function App() {
   };
 
   const handleDeleteSubscription = (idToDelete) => {
+    const sub = subscriptions.find(sub => sub.id === idToDelete);
+    const name = sub ? `«${sub.name}»` : '';
+    if (!window.confirm(`Вы действительно хотите удалить подписку${name ? ' ' + name : ''}?`)) return;
     setSubscriptions(prevSubs => prevSubs.filter(sub => sub.id !== idToDelete));
     showToast('Подписка удалена', 'success');
   };
@@ -196,11 +200,13 @@ function App() {
         </header>
 
         <main className="space-y-8">
-          {/* Секция списка подписок и кнопка добавления */}
+          {/* СПОЙЛЕР секция списка подписок и кнопка добавления */}
           <section aria-labelledby="subscriptions-list-heading" className="bg-white shadow-xl rounded-xl p-6 md:p-8">
-            <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-6">
-              <h2 id="subscriptions-list-heading" className="text-2xl font-semibold text-slate-700 mb-4 sm:mb-0">
-                Мои подписки
+            {/* Заголовок и кнопка сворачивания */}
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-6 select-none cursor-pointer group" onClick={() => setIsSubsOpen(v => !v)}>
+              <h2 id="subscriptions-list-heading" className="text-2xl font-semibold text-slate-700 mb-4 sm:mb-0 flex items-center gap-2">
+                <span>Мои подписки</span>
+                <svg className={`h-5 w-5 text-slate-400 transition-transform duration-300 ${isSubsOpen ? '' : 'rotate-180'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               </h2>
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                 {subscriptions.length > 0 && (
@@ -212,7 +218,7 @@ function App() {
                   </div>
                 )}
                 <button
-                  onClick={() => setIsModalOpen(true)} // <--- Открываем модалку
+                  onClick={e => { e.stopPropagation(); setIsModalOpen(true); }}
                   className="order-1 sm:order-2 w-full sm:w-auto flex items-center justify-center gap-2 bg-brand-secondary hover:bg-emerald-600 text-white font-semibold py-2.5 px-5 rounded-lg shadow-md hover:shadow-lg transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-opacity-75"
                 >
                   <PlusIcon className="h-5 w-5" />
@@ -220,16 +226,22 @@ function App() {
                 </button>
               </div>
             </div>
-            <SubscriptionList
-              subscriptions={subscriptions}
-              onDeleteSubscription={handleDeleteSubscription}
-              onEditSubscription={handleOpenEditModal}
-            />
-             {subscriptions.length > 0 && (
+            {/* Контент спойлера с анимацией */}
+            <div
+              className={`overflow-hidden transition-all duration-400 ${isSubsOpen ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0 pointer-events-none'}`}
+              style={{ transitionProperty: 'max-height, opacity' }}
+            >
+              <SubscriptionList
+                subscriptions={subscriptions}
+                onDeleteSubscription={handleDeleteSubscription}
+                onEditSubscription={handleOpenEditModal}
+              />
+              {subscriptions.length > 0 && (
                 <p className="text-xs text-slate-500 mt-6 text-right">
                     * Годовые подписки конвертированы в месячную стоимость. Конвертация других валют не реализована.
                 </p>
-             )}
+              )}
+            </div>
           </section>
           
           {/* Секция экспорта для Telegram */}

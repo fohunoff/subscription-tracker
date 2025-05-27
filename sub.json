@@ -7,10 +7,17 @@
     "cycle": "monthly"
   },
   {
-    "name": "Claude",
+    "name": "Claude AI",
     "cost": 180,
     "currency": "USD",
     "payment_day": 1,
     "cycle": "annually"
+  },
+  {
+    "name": "Инфорум",
+    "cost": 500,
+    "currency": "RUB",
+    "payment_day": 5,
+    "cycle": "monthly"
   }
 ]
