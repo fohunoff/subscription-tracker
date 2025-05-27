@@ -5,6 +5,7 @@ import SubscriptionList from './components/SubscriptionList';
 import ExportData from './components/ExportData';
 import Modal from './components/Modal'; // <--- Импортируем Modal
 import { PlusIcon } from '@heroicons/react/24/solid'; // Для кнопки открытия модалки
+import { Cog6ToothIcon } from '@heroicons/react/24/outline';
 import { useToast } from './components/ToastProvider';
 
 const AppIcon = ({ className = "w-10 h-10 text-brand-primary" }) => (
@@ -47,6 +48,7 @@ function App() {
   const [editingSubscription, setEditingSubscription] = useState(null);
   const [currencyRates, setCurrencyRates] = useState(FALLBACK_CURRENCY_RATES);
   const [isRatesLoading, setIsRatesLoading] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -142,6 +144,16 @@ function App() {
 
   return (
     <div className="min-h-screen bg-slate-100 font-sans">
+      {/* Иконка шестерёнки */}
+      <button
+        onClick={() => setIsSettingsOpen(true)}
+        className="fixed top-4 right-4 z-50 bg-white/80 hover:bg-white shadow-lg rounded-full p-2 border border-slate-200 transition-colors"
+        aria-label="Открыть настройки"
+        type="button"
+      >
+        <Cog6ToothIcon className="h-7 w-7 text-slate-600" />
+      </button>
+
       <div className="container mx-auto px-4 py-8 md:py-12 max-w-4xl">
         
         <header className="mb-10 flex flex-col items-center text-center">
@@ -224,6 +236,29 @@ function App() {
           initialData={editingSubscription}
           isEditMode={!!editingSubscription}
         />
+      </Modal>
+
+      {/* Модальное окно для настроек */}
+      <Modal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        title="Настройки"
+      >
+        <div className="space-y-4">
+          <div>
+            <span className="block text-sm font-medium text-slate-700 mb-2">Курсы валют</span>
+            <button
+              onClick={fetchRates}
+              disabled={isRatesLoading}
+              className="inline-flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white font-medium py-2 px-4 rounded-lg shadow-sm transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-opacity-75 disabled:opacity-50"
+            >
+              {isRatesLoading ? 'Обновление...' : 'Обновить курсы'}
+            </button>
+            <div className="mt-2 text-xs text-slate-500">
+              Текущий курс: 1 USD = {(1 / currencyRates.USD).toFixed(2)} RUB, 1 EUR = {(1 / currencyRates.EUR).toFixed(2)} RUB
+            </div>
+          </div>
+        </div>
       </Modal>
     </div>
   );
