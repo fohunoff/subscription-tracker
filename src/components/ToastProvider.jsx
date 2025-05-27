@@ -32,7 +32,7 @@ export function ToastProvider({ children }) {
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      <div className="fixed z-50 bottom-8 right-8 space-y-2 pointer-events-none">
+      <div className="fixed z-[9999] bottom-8 right-8 space-y-2 pointer-events-none">
         {toasts.map((toast) => (
           <div
             key={toast.id}
