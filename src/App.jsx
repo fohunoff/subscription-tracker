@@ -1,26 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { v4 as uuidv4 } from 'uuid';
+import { GoogleOAuthProvider } from '@react-oauth/google';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import SubscriptionForm from './components/SubscriptionForm';
 import SubscriptionList from './components/SubscriptionList';
 import ExportData from './components/ExportData';
-import Modal from './components/Modal'; // <--- Импортируем Modal
+import Modal from './components/Modal';
 import SettingsModal from './components/SettingsModal';
-import { PlusIcon } from '@heroicons/react/24/solid'; // Для кнопки открытия модалки
+import LoginPage from './components/LoginPage';
+import UserMenu from './components/UserMenu';
+import { PlusIcon } from '@heroicons/react/24/solid';
 import { Cog6ToothIcon } from '@heroicons/react/24/outline';
 import { useToast } from './components/ToastProvider';
-
-const AppIcon = ({ className = "w-10 h-10 text-brand-primary" }) => (
-  <svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect x="15" y="15" width="70" height="70" rx="8" fill="#2563EB"/>
-    <rect x="15" y="15" width="70" height="20" rx="8" ry="8" fill="#1D4ED8"/>
-    <circle cx="30" cy="25" r="3" fill="white"/>
-    <circle cx="40" cy="25" r="3" fill="white"/>
-    <circle cx="50" cy="25" r="3" fill="white"/>
-    <rect x="30" y="45" width="40" height="30" rx="4" fill="#FFFF00"/>
-    <circle cx="50" cy="60" r="8" fill="#FFFFFF"/>
-    <path d="M46 60 L50 64 L56 58" stroke="#2563EB" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-  </svg>
-);
 
 const FALLBACK_CURRENCY_RATES = {
   RUB: 1,
@@ -28,6 +18,7 @@ const FALLBACK_CURRENCY_RATES = {
   EUR: 98,
   RSD: 0.83,
 };
+
 const CURRENCY_SYMBOLS = {
   RUB: '₽',
   USD: '$',
@@ -35,19 +26,16 @@ const CURRENCY_SYMBOLS = {
   RSD: 'дин.',
 };
 
+// Google Client ID из environment переменных
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
-function App() {
-  const [subscriptions, setSubscriptions] = useState(() => {
-    const savedSubs = localStorage.getItem('subscriptions');
-    try {
-      return savedSubs ? JSON.parse(savedSubs) : [];
-    } catch (error) {
-      console.error("Ошибка парсинга подписок из localStorage:", error);
-      return [];
-    }
-  });
-
-  const [isModalOpen, setIsModalOpen] = useState(false); // <--- Состояние для модалки
+function AppContent() {
+  const { user, isAuthenticated, loading, api } = useAuth();
+  const { showToast } = useToast();
+  
+  // ✅ ВСЕ ХУКИ ДОЛЖНЫ БЫТЬ В НАЧАЛЕ, ДО ЛЮБЫХ УСЛОВНЫХ ВОЗВРАТОВ
+  const [subscriptions, setSubscriptions] = useState([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSubscription, setEditingSubscription] = useState(null);
   const [currencyRates, setCurrencyRates] = useState(FALLBACK_CURRENCY_RATES);
   const [isRatesLoading, setIsRatesLoading] = useState(false);
@@ -65,16 +53,23 @@ function App() {
     return saved ? new Date(saved) : null;
   });
   const [isSubsOpen, setIsSubsOpen] = useState(true);
-  const { showToast } = useToast();
+  const [isLoadingData, setIsLoadingData] = useState(false);
 
+  // ✅ ВСЕ useEffect ХУКИ ДОЛЖНЫ БЫТЬ ЗДЕСЬ
+  
+  // Загружаем подписки после авторизации
   useEffect(() => {
-    localStorage.setItem('subscriptions', JSON.stringify(subscriptions));
-  }, [subscriptions]);
+    if (isAuthenticated && api) {
+      loadSubscriptions();
+    }
+  }, [isAuthenticated, api]);
 
+  // Настройки валюты
   useEffect(() => {
     localStorage.setItem('baseCurrency', baseCurrency);
   }, [baseCurrency]);
 
+  // Настройки темы
   useEffect(() => {
     localStorage.setItem('theme', theme);
     if (theme === 'dark') {
@@ -84,6 +79,7 @@ function App() {
     }
   }, [theme]);
 
+  // Обработчик toast событий
   useEffect(() => {
     function handleToastEvent(e) {
       if (e.detail && e.detail.msg) showToast(e.detail.msg, e.detail.type);
@@ -91,6 +87,41 @@ function App() {
     window.addEventListener('show-toast', handleToastEvent);
     return () => window.removeEventListener('show-toast', handleToastEvent);
   }, [showToast]);
+
+  // Загрузка курсов валют при старте
+  useEffect(() => {
+    fetchRates();
+  }, []);
+
+  // ✅ ВСЕ useMemo ХУКИ
+  const totalMonthlyCost = useMemo(() => {
+    const totalRub = subscriptions.reduce((total, sub) => {
+      let monthlyCost = sub.cost;
+      if (sub.cycle === 'annually') {
+        monthlyCost = monthlyCost / 12;
+      }
+      const rate = currencyRates[sub.currency] || 1;
+      return total + monthlyCost * rate;
+    }, 0);
+    const rateToBase = currencyRates[baseCurrency] || 1;
+    return totalRub / rateToBase;
+  }, [subscriptions, currencyRates, baseCurrency]);
+
+  // ✅ ФУНКЦИИ (НЕ ХУКИ)
+  const loadSubscriptions = async () => {
+    if (!api) return;
+    
+    setIsLoadingData(true);
+    try {
+      const userSubscriptions = await api.getSubscriptions();
+      setSubscriptions(userSubscriptions);
+    } catch (error) {
+      console.error('Ошибка загрузки подписок:', error);
+      showToast('Ошибка загрузки подписок', 'error');
+    } finally {
+      setIsLoadingData(false);
+    }
+  };
 
   const fetchRates = async () => {
     setIsRatesLoading(true);
@@ -121,23 +152,38 @@ function App() {
     }
   };
 
-  useEffect(() => {
-    fetchRates();
-    // eslint-disable-next-line
-  }, []);
+  const handleAddSubscription = async (newSub) => {
+    if (!api) return;
 
-  const handleAddSubscription = (newSub) => {
-    setSubscriptions(prevSubs => [...prevSubs, { ...newSub, id: uuidv4() }]);
-    setIsModalOpen(false);
-    showToast('Подписка добавлена!', 'success');
+    try {
+      const createdSubscription = await api.createSubscription(newSub);
+      setSubscriptions(prev => [...prev, createdSubscription]);
+      setIsModalOpen(false);
+      showToast('Подписка добавлена!', 'success');
+    } catch (error) {
+      console.error('Ошибка добавления подписки:', error);
+      showToast(error.message || 'Ошибка добавления подписки', 'error');
+    }
   };
 
-  const handleDeleteSubscription = (idToDelete) => {
+  const handleDeleteSubscription = async (idToDelete) => {
+    if (!api) return;
+
     const sub = subscriptions.find(sub => sub.id === idToDelete);
     const name = sub ? `«${sub.name}»` : '';
-    if (!window.confirm(`Вы действительно хотите удалить подписку${name ? ' ' + name : ''}?`)) return;
-    setSubscriptions(prevSubs => prevSubs.filter(sub => sub.id !== idToDelete));
-    showToast('Подписка удалена', 'success');
+    
+    if (!window.confirm(`Вы действительно хотите удалить подписку${name ? ' ' + name : ''}?`)) {
+      return;
+    }
+
+    try {
+      await api.deleteSubscription(idToDelete);
+      setSubscriptions(prev => prev.filter(sub => sub.id !== idToDelete));
+      showToast('Подписка удалена', 'success');
+    } catch (error) {
+      console.error('Ошибка удаления подписки:', error);
+      showToast(error.message || 'Ошибка удаления подписки', 'error');
+    }
   };
 
   const handleOpenEditModal = (subscription) => {
@@ -145,78 +191,97 @@ function App() {
     setIsModalOpen(true);
   };
 
-  const handleUpdateSubscription = (id, updatedSubData) => {
-    setSubscriptions(prevSubs => prevSubs.map(sub => sub.id === id ? { ...sub, ...updatedSubData } : sub));
-    setIsModalOpen(false);
-    setEditingSubscription(null);
-    showToast('Изменения сохранены', 'success');
+  const handleUpdateSubscription = async (id, updatedSubData) => {
+    if (!api) return;
+
+    try {
+      const updatedSubscription = await api.updateSubscription(id, updatedSubData);
+      setSubscriptions(prev => prev.map(sub => 
+        sub.id === id ? updatedSubscription : sub
+      ));
+      setIsModalOpen(false);
+      setEditingSubscription(null);
+      showToast('Изменения сохранены', 'success');
+    } catch (error) {
+      console.error('Ошибка обновления подписки:', error);
+      showToast(error.message || 'Ошибка обновления подписки', 'error');
+    }
   };
 
-  // Добавим обработчик импорта в App
-  const handleImportSubscriptions = (importedSubs) => {
-    setSubscriptions(prev => [
-      ...prev,
-      ...importedSubs.filter(
-        imported => !prev.some(sub => sub.name === imported.name && sub.cost === imported.cost && sub.paymentDay === imported.paymentDay)
-      )
-    ]);
-    showToast('Подписки импортированы!', 'success');
+  const handleImportSubscriptions = async (importedSubs) => {
+    if (!api) return;
+
+    try {
+      const result = await api.importSubscriptions(importedSubs);
+      await loadSubscriptions(); // Перезагружаем список
+      showToast(`Импортировано ${result.addedCount} подписок!`, 'success');
+    } catch (error) {
+      console.error('Ошибка импорта подписок:', error);
+      showToast(error.message || 'Ошибка импорта подписок', 'error');
+    }
   };
 
-  const totalMonthlyCost = useMemo(() => {
-    // Сумма в RUB
-    const totalRub = subscriptions.reduce((total, sub) => {
-      let monthlyCost = sub.cost;
-      if (sub.cycle === 'annually') {
-        monthlyCost = monthlyCost / 12;
-      }
-      const rate = currencyRates[sub.currency] || 1;
-      return total + monthlyCost * rate;
-    }, 0);
-    // Конвертируем в выбранную валюту
-    const rateToBase = currencyRates[baseCurrency] || 1;
-    return totalRub / rateToBase;
-  }, [subscriptions, currencyRates, baseCurrency]);
+  // ✅ ТЕПЕРЬ УСЛОВНЫЙ РЕНДЕРИНГ В КОНЦЕ, ПОСЛЕ ВСЕХ ХУКОВ
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-900">
+        <div className="flex items-center space-x-2">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary"></div>
+          <span className="text-lg text-slate-600 dark:text-slate-300">Загрузка...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <LoginPage />;
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-100 dark:bg-slate-900 font-sans transition-colors">
-      {/* Иконка шестерёнки */}
-      <button
-        onClick={() => setIsSettingsOpen(true)}
-        className="fixed top-4 right-4 z-50 bg-white/80 hover:bg-white shadow-lg rounded-full p-2 border border-slate-200 transition-colors"
-        aria-label="Открыть настройки"
-        type="button"
-      >
-        <Cog6ToothIcon className="h-7 w-7 text-slate-600" />
-      </button>
+      {/* Хедер с настройками и пользователем */}
+      <div className="fixed top-4 right-4 z-50 flex items-center space-x-3">
+        <button
+          onClick={() => setIsSettingsOpen(true)}
+          className="bg-white/80 hover:bg-white shadow-lg rounded-full p-2 border border-slate-200 transition-colors"
+          aria-label="Открыть настройки"
+          type="button"
+        >
+          <Cog6ToothIcon className="h-7 w-7 text-slate-600" />
+        </button>
+        <UserMenu />
+      </div>
 
       <div className="container mx-auto px-4 py-8 md:py-12 max-w-4xl flex-1 flex flex-col">
         
         <header className="mb-10 flex flex-col items-center text-center">
-          {/* <AppIcon className="w-16 h-16 mb-4" /> */}
-          <h1 className="text-4xl md:text-5xl font-bold text-slate-800 tracking-tight">
+          <h1 className="text-4xl md:text-5xl font-bold text-slate-800 dark:text-white tracking-tight">
             Трекер расходов
           </h1>
-          <p className="mt-2 text-lg text-slate-600">
-            Управляйте своими расходами легко и эффективно.
+          <p className="mt-2 text-lg text-slate-600 dark:text-slate-300">
+            Привет, {user?.name}! Управляй своими расходами легко и эффективно.
           </p>
         </header>
 
         <main className="space-y-8 flex-1">
-          {/* СПОЙЛЕР секция списка подписок и кнопка добавления */}
-          <section aria-labelledby="subscriptions-list-heading" className="bg-white shadow-xl rounded-xl p-6 md:p-8">
-            {/* Заголовок и кнопка сворачивания */}
+          {/* Секция списка подписок */}
+          <section aria-labelledby="subscriptions-list-heading" className="bg-white dark:bg-slate-800 shadow-xl rounded-xl p-6 md:p-8">
             <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-6 select-none cursor-pointer group" onClick={() => setIsSubsOpen(v => !v)}>
-              <h2 id="subscriptions-list-heading" className="text-2xl font-semibold text-slate-700 mb-4 sm:mb-0 flex items-center gap-2">
+              <h2 id="subscriptions-list-heading" className="text-2xl font-semibold text-slate-700 dark:text-slate-200 mb-4 sm:mb-0 flex items-center gap-2">
                 <span>Мои подписки</span>
-                <svg className={`h-5 w-5 text-slate-400 transition-transform duration-300 ${isSubsOpen ? '' : 'rotate-180'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                {isLoadingData && (
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-brand-primary"></div>
+                )}
+                <svg className={`h-5 w-5 text-slate-400 transition-transform duration-300 ${isSubsOpen ? '' : 'rotate-180'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
               </h2>
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                 {subscriptions.length > 0 && (
                   <div className="text-left sm:text-right order-2 sm:order-1">
-                      <span className="text-sm text-slate-500 block">Итого в месяц:</span>
+                      <span className="text-sm text-slate-500 dark:text-slate-400 block">Итого в месяц:</span>
                       <p className="text-3xl font-bold text-brand-primary">
-                          {totalMonthlyCost.toFixed(2)} <span className="text-xl font-medium text-slate-600">{CURRENCY_SYMBOLS[baseCurrency] || baseCurrency}</span>
+                          {totalMonthlyCost.toFixed(2)} <span className="text-xl font-medium text-slate-600 dark:text-slate-300">{CURRENCY_SYMBOLS[baseCurrency] || baseCurrency}</span>
                       </p>
                   </div>
                 )}
@@ -229,37 +294,50 @@ function App() {
                 </button>
               </div>
             </div>
-            {/* Контент спойлера с анимацией */}
+            
             <div
               className={`overflow-hidden transition-all duration-400 ${isSubsOpen ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0 pointer-events-none'}`}
               style={{ transitionProperty: 'max-height, opacity' }}
             >
-              <SubscriptionList
-                subscriptions={subscriptions}
-                onDeleteSubscription={handleDeleteSubscription}
-                onEditSubscription={handleOpenEditModal}
-              />
-              {subscriptions.length > 0 && (
-                <p className="text-xs text-slate-500 mt-6 text-right">
-                    * Годовые подписки конвертированы в месячную стоимость. Конвертация других валют не реализована.
-                </p>
+              {isLoadingData ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary mx-auto mb-4"></div>
+                  <p className="text-slate-600 dark:text-slate-300">Загрузка подписок...</p>
+                </div>
+              ) : (
+                <>
+                  <SubscriptionList
+                    subscriptions={subscriptions}
+                    onDeleteSubscription={handleDeleteSubscription}
+                    onEditSubscription={handleOpenEditModal}
+                  />
+                  {subscriptions.length > 0 && (
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-6 text-right">
+                        * Годовые подписки конвертированы в месячную стоимость.
+                    </p>
+                  )}
+                </>
               )}
             </div>
           </section>
           
           {/* Секция экспорта для Telegram */}
-          <section aria-labelledby="telegram-export-heading" className="bg-white shadow-xl rounded-xl p-6 md:p-8">
-            <h2 id="telegram-export-heading" className="text-2xl font-semibold text-slate-700 mb-3">
+          <section aria-labelledby="telegram-export-heading" className="bg-white dark:bg-slate-800 shadow-xl rounded-xl p-6 md:p-8">
+            <h2 id="telegram-export-heading" className="text-2xl font-semibold text-slate-700 dark:text-slate-200 mb-3">
               Уведомления в Telegram
             </h2>
-            <p className="text-slate-600 mb-4">
+            <p className="text-slate-600 dark:text-slate-300 mb-4">
               Экспортируйте данные для вашего Telegram-бота, чтобы получать своевременные напоминания о предстоящих платежах.
             </p>
-            <ExportData subscriptions={subscriptions} onImport={handleImportSubscriptions} />
+            <ExportData 
+              subscriptions={subscriptions} 
+              onImport={handleImportSubscriptions}
+            />
           </section>
         </main>
-        <footer className="mt-16 text-center text-sm text-slate-500 mb-2 sm:mb-4 md:mb-6 lg:mb-8 flex-shrink-0">
-          <p>© {new Date().getFullYear()} Трекер Подписок. Разработано с Tailwind CSS.</p>
+        
+        <footer className="mt-16 text-center text-sm text-slate-500 dark:text-slate-400 mb-2 sm:mb-4 md:mb-6 lg:mb-8 flex-shrink-0">
+          <p>© {new Date().getFullYear()} Трекер Подписок. Разработано с React + Express.</p>
         </footer>
       </div>
 
@@ -294,6 +372,30 @@ function App() {
         setTheme={setTheme}
       />
     </div>
+  );
+}
+
+function App() {
+  if (!GOOGLE_CLIENT_ID) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-100">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Ошибка конфигурации</h1>
+          <p className="text-slate-600">Google Client ID не настроен</p>
+          <p className="text-sm text-slate-500 mt-2">
+            Добавьте VITE_GOOGLE_CLIENT_ID в ваш .env файл
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </GoogleOAuthProvider>
   );
 }
 

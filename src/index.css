@@ -4,7 +4,7 @@
 @tailwind utilities;
 
 body {
-  @apply bg-slate-100 text-brand-dark antialiased;
+  @apply bg-slate-100 dark:bg-slate-900 text-brand-dark dark:text-slate-200 antialiased;
 }
 
 /* Кастомная анимация для модального окна */
@@ -58,4 +58,14 @@ body {
   .toast-animate.toast-leave {
     animation: toastOut 0.45s cubic-bezier(.22,1.2,.36,1) both;
   }
+}
+
+/* Стили для Google OAuth кнопки в темной теме */
+.dark .google-login-container [data-testid="google-login"] {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+/* Улучшение контрастности для темной темы */
+.dark {
+  color-scheme: dark;
 }
