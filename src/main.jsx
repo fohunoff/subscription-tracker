@@ -1,7 +1,8 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
+
 import App from './App.jsx'
-import { ToastProvider } from './components/ToastProvider';
+import { ToastProvider } from './features/notifications/ToastProvider.jsx'
 
 import 'react-datepicker/dist/react-datepicker.css'
 import './index.css'

@@ -1,16 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import SubscriptionForm from './components/SubscriptionForm';
-import SubscriptionList from './components/SubscriptionList';
-import ExportData from './components/ExportData';
-import Modal from './components/Modal';
-import SettingsModal from './components/SettingsModal';
-import LoginPage from './components/LoginPage';
-import UserMenu from './components/UserMenu';
-import { PlusIcon } from '@heroicons/react/24/solid';
-import { Cog6ToothIcon } from '@heroicons/react/24/outline';
-import { useToast } from './components/ToastProvider';
+import { SubscriptionForm, SubscriptionList } from './features/subscriptions';
+import { ExportData } from './features/telegram';
+import { Modal } from './shared';
+import { SettingsModal } from './features/settings';
+import { LoginPage, UserMenu } from './shared';
+import { useToast } from './features/notifications';
+import { Cog6ToothIcon, PlusIcon } from '@heroicons/react/24/solid';
 
 const FALLBACK_CURRENCY_RATES = {
   RUB: 1,
@@ -55,8 +52,7 @@ function AppContent() {
   const [isSubsOpen, setIsSubsOpen] = useState(true);
   const [isLoadingData, setIsLoadingData] = useState(false);
 
-  // ✅ ВСЕ useEffect ХУКИ ДОЛЖНЫ БЫТЬ ЗДЕСЬ
-  
+  // ✅ ВСЕ useEffect ХУКИ
   // Загружаем подписки после авторизации
   useEffect(() => {
     if (isAuthenticated && api) {
@@ -255,11 +251,11 @@ function AppContent() {
       <div className="container mx-auto px-4 py-8 md:py-12 max-w-4xl flex-1 flex flex-col">
         
         <header className="mb-10 flex flex-col items-center text-center">
-          <h1 className="text-4xl md:text-5xl font-bold text-slate-800 dark:text-white tracking-tight">
+          <h1 className="text-4xl md:text-5xl font-bold text-slate-800 tracking-tight">
             Трекер расходов
           </h1>
-          <p className="mt-2 text-lg text-slate-600 dark:text-slate-300">
-            Привет, {user?.name}! Управляй своими расходами легко и эффективно.
+          <p className="mt-2 text-lg text-slate-600">
+            Управляйте своими расходами легко и эффективно.
           </p>
         </header>
 
@@ -337,7 +333,7 @@ function AppContent() {
         </main>
         
         <footer className="mt-16 text-center text-sm text-slate-500 dark:text-slate-400 mb-2 sm:mb-4 md:mb-6 lg:mb-8 flex-shrink-0">
-          <p>© {new Date().getFullYear()} Трекер Подписок. Разработано с React + Express.</p>
+          <p>© {new Date().getFullYear()} Трекер расходов. Разработано с React + Express + TailwindCSS.</p>
         </footer>
       </div>
 
