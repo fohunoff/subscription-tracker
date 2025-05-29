@@ -1,17 +1,17 @@
 {
   "name": "subscription-tracker-backend",
   "version": "1.0.0",
-  "description": "Backend для трекера подписок с Google OAuth",
+  "description": "Backend для трекера подписок с Google OAuth и MongoDB",
   "type": "module",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
     "test": "echo \"Тесты не настроены\" && exit 1",
-    "lint": "eslint . --ext .js",
-    "lint:fix": "eslint . --ext .js --fix"
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
-  "keywords": ["subscription", "tracker", "google-oauth", "express", "es6"],
+  "keywords": ["subscription", "tracker", "google-oauth", "express", "mongodb", "es6"],
   "author": "Your Name",
   "license": "MIT",
   "dependencies": {
@@ -19,11 +19,14 @@
     "cors": "^2.8.5",
     "google-auth-library": "^9.4.0",
     "jsonwebtoken": "^9.0.2",
-    "dotenv": "^16.3.1"
+    "dotenv": "^16.3.1",
+    "mongoose": "^8.0.3"
   },
   "devDependencies": {
     "nodemon": "^3.0.2",
-    "eslint": "^8.57.0"
+    "@eslint/js": "^9.0.0",
+    "eslint": "^9.0.0",
+    "globals": "^14.0.0"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -34,21 +37,6 @@
     "ignore": ["node_modules/"],
     "env": {
       "NODE_ENV": "development"
-    }
-  },
-  "eslintConfig": {
-    "env": {
-      "es2022": true,
-      "node": true
-    },
-    "extends": ["eslint:recommended"],
-    "parserOptions": {
-      "ecmaVersion": "latest",
-      "sourceType": "module"
-    },
-    "rules": {
-      "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
-      "no-console": "off"
     }
   }
 }

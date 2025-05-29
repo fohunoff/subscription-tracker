@@ -11,7 +11,7 @@ export const useAuth = () => {
   return context;
 };
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -86,7 +86,7 @@ export const AuthProvider = ({ children }) => {
       if (response.ok && data.success) {
         const { token: authToken, user: userData } = data;
         
-        // Сохраняем токен
+        // Сохраняем токен только в localStorage (для сессий)
         localStorage.setItem('authToken', authToken);
         setToken(authToken);
         setUser(userData);
@@ -103,7 +103,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      // Уведомляем сервер о выходе (опционально)
+      // Уведомляем сервер о выходе
       if (token) {
         await fetch(`${API_URL}/auth/logout`, {
           method: 'POST',
@@ -116,7 +116,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Ошибка при выходе:', error);
     } finally {
-      // Очищаем локальное состояние
+      // Очищаем состояние
       localStorage.removeItem('authToken');
       setToken(null);
       setUser(null);
@@ -245,7 +245,7 @@ export const AuthProvider = ({ children }) => {
     loginWithGoogle,
     logout,
     isAuthenticated: !!user,
-    api // Добавляем API методы в контекст
+    api
   };
 
   return (
