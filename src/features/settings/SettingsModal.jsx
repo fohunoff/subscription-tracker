@@ -1,5 +1,6 @@
 import React from 'react';
 import { Modal } from '../../shared';
+import { formatDate } from '../../shared/utils';
 
 const SettingsModal = ({
   isOpen,
@@ -33,7 +34,7 @@ const SettingsModal = ({
         </div>
         {lastRatesUpdate && (
           <div className="mt-1 text-xs text-slate-400">
-            Последнее обновление: {lastRatesUpdate.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+            Последнее обновление: {formatDate(lastRatesUpdate)}
           </div>
         )}
       </div>

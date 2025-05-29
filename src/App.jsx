@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SubscriptionForm, SubscriptionList } from './features/subscriptions';
@@ -8,49 +8,33 @@ import { SettingsModal } from './features/settings';
 import { LoginPage, UserMenu } from './shared';
 import { useToast } from './features/notifications';
 import { Cog6ToothIcon, PlusIcon } from '@heroicons/react/24/solid';
+import { useLocalStorage } from './shared/hooks';
+import { useCurrencyRates, useTheme } from './features/settings/hooks';
+import { useSubscriptions } from './features/subscriptions/hooks';
+import { formatCurrency } from './shared/utils';
 
-const FALLBACK_CURRENCY_RATES = {
-  RUB: 1,
-  USD: 90,
-  EUR: 98,
-  RSD: 0.83,
-};
-
-const CURRENCY_SYMBOLS = {
-  RUB: '₽',
-  USD: '$',
-  EUR: '€',
-  RSD: 'дин.',
-};
 
 // Google Client ID из environment переменных
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 function AppContent() {
-  const { user, isAuthenticated, loading, api } = useAuth();
+  const { isAuthenticated, loading, api } = useAuth();
   const { showToast } = useToast();
+  const { currencyRates, isRatesLoading, lastRatesUpdate, fetchRates } = useCurrencyRates();
+  const {
+    subscriptions,
+    setSubscriptions,
+    isLoadingData,
+    loadSubscriptions,
+  } = useSubscriptions(api, showToast);
   
   // ✅ ВСЕ ХУКИ ДОЛЖНЫ БЫТЬ В НАЧАЛЕ, ДО ЛЮБЫХ УСЛОВНЫХ ВОЗВРАТОВ
-  const [subscriptions, setSubscriptions] = useState([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingSubscription, setEditingSubscription] = useState(null);
-  const [currencyRates, setCurrencyRates] = useState(FALLBACK_CURRENCY_RATES);
-  const [isRatesLoading, setIsRatesLoading] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [baseCurrency, setBaseCurrency] = useState(() => {
-    const saved = localStorage.getItem('baseCurrency');
-    return saved || 'RUB';
-  });
-  const [theme, setTheme] = useState(() => {
-    const saved = localStorage.getItem('theme');
-    return saved === 'dark' ? 'dark' : 'light';
-  });
-  const [lastRatesUpdate, setLastRatesUpdate] = useState(() => {
-    const saved = localStorage.getItem('lastRatesUpdate');
-    return saved ? new Date(saved) : null;
-  });
-  const [isSubsOpen, setIsSubsOpen] = useState(true);
-  const [isLoadingData, setIsLoadingData] = useState(false);
+  const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [editingSubscription, setEditingSubscription] = React.useState(null);
+  const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
+  const [baseCurrency, setBaseCurrency] = useLocalStorage('baseCurrency', 'RUB');
+  const [theme, setTheme] = useTheme('light');
+  const [isSubsOpen, setIsSubsOpen] = React.useState(true);
 
   // ✅ ВСЕ useEffect ХУКИ
   // Загружаем подписки после авторизации
@@ -64,16 +48,6 @@ function AppContent() {
   useEffect(() => {
     localStorage.setItem('baseCurrency', baseCurrency);
   }, [baseCurrency]);
-
-  // Настройки темы
-  useEffect(() => {
-    localStorage.setItem('theme', theme);
-    if (theme === 'dark') {
-      document.body.classList.add('dark');
-    } else {
-      document.body.classList.remove('dark');
-    }
-  }, [theme]);
 
   // Обработчик toast событий
   useEffect(() => {
@@ -104,50 +78,6 @@ function AppContent() {
   }, [subscriptions, currencyRates, baseCurrency]);
 
   // ✅ ФУНКЦИИ (НЕ ХУКИ)
-  const loadSubscriptions = async () => {
-    if (!api) return;
-    
-    setIsLoadingData(true);
-    try {
-      const userSubscriptions = await api.getSubscriptions();
-      setSubscriptions(userSubscriptions);
-    } catch (error) {
-      console.error('Ошибка загрузки подписок:', error);
-      showToast('Ошибка загрузки подписок', 'error');
-    } finally {
-      setIsLoadingData(false);
-    }
-  };
-
-  const fetchRates = async () => {
-    setIsRatesLoading(true);
-    try {
-      const res = await fetch('https://api.exchangerate.host/latest?base=RUB&symbols=USD,EUR,RSD');
-      const data = await res.json();
-
-      if (data && data.error) {
-        showToast(data.error.info || 'Что-то пошло не так', 'error');
-      }
-
-      if (data && data.rates) {
-        setCurrencyRates({
-          RUB: 1,
-          USD: 1 / data.rates.USD,
-          EUR: 1 / data.rates.EUR,
-          RSD: 1 / data.rates.RSD,
-        });
-        const now = new Date();
-        setLastRatesUpdate(now);
-        localStorage.setItem('lastRatesUpdate', now.toISOString());
-        showToast('Курсы валют обновлены', 'success');
-      }
-    } catch {
-      showToast('Ошибка обновления курсов валют', 'error');
-    } finally {
-      setIsRatesLoading(false);
-    }
-  };
-
   const handleAddSubscription = async (newSub) => {
     if (!api) return;
 
@@ -277,7 +207,7 @@ function AppContent() {
                   <div className="text-left sm:text-right order-2 sm:order-1">
                       <span className="text-sm text-slate-500 dark:text-slate-400 block">Итого в месяц:</span>
                       <p className="text-3xl font-bold text-brand-primary">
-                          {totalMonthlyCost.toFixed(2)} <span className="text-xl font-medium text-slate-600 dark:text-slate-300">{CURRENCY_SYMBOLS[baseCurrency] || baseCurrency}</span>
+                          {formatCurrency(totalMonthlyCost, baseCurrency)}
                       </p>
                   </div>
                 )}
