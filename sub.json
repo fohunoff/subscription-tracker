@@ -1,9 +1,30 @@
 [
   {
-    "name": "Хостинг firstVDS",
-    "cost": 690,
+    "name": "Apple TV",
+    "cost": 69,
     "currency": "RUB",
     "payment_day": 29,
+    "cycle": "monthly"
+  },
+  {
+    "name": "Телеграм Премиум (Вика)",
+    "cost": 299,
+    "currency": "RUB",
+    "payment_day": 21,
+    "cycle": "monthly"
+  },
+  {
+    "name": "Яндекс Плюс",
+    "cost": 399,
+    "currency": "RUB",
+    "payment_day": 29,
+    "cycle": "monthly"
+  },
+  {
+    "name": "Инфорум БСК",
+    "cost": 500,
+    "currency": "RUB",
+    "payment_day": 5,
     "cycle": "monthly"
   },
   {
@@ -14,10 +35,10 @@
     "cycle": "annually"
   },
   {
-    "name": "Инфорум",
-    "cost": 500,
+    "name": "Хостинг firstVDS",
+    "cost": 690,
     "currency": "RUB",
-    "payment_day": 5,
+    "payment_day": 29,
     "cycle": "monthly"
   }
 ]

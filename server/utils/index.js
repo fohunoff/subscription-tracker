@@ -13,8 +13,9 @@ export const generateToken = (user) => {
   );
 };
 
-export const validateSubscriptionData = (data) => {
+export const validateSubscriptionData = (data, requiresReminders = true) => {
   const { name, cost, currency, cycle, paymentDay } = data;
+  
   if (!name?.trim()) {
     throw new Error('Название подписки обязательно');
   }
@@ -27,8 +28,13 @@ export const validateSubscriptionData = (data) => {
   if (!cycle || !['monthly', 'annually'].includes(cycle)) {
     throw new Error('Цикл оплаты должен быть monthly или annually');
   }
-  if (!paymentDay || isNaN(parseInt(paymentDay))) {
-    throw new Error('День оплаты обязателен');
+  
+  // Проверяем поля даты только если требуются напоминания
+  if (requiresReminders) {
+    if (!paymentDay || isNaN(parseInt(paymentDay))) {
+      throw new Error('День оплаты обязателен для категорий с напоминаниями');
+    }
   }
+  
   return true;
 };

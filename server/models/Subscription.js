@@ -7,6 +7,12 @@ const subscriptionSchema = new mongoose.Schema({
     required: true,
     index: true
   },
+  categoryId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Category',
+    required: true,
+    index: true
+  },
   name: {
     type: String,
     required: true,
@@ -31,7 +37,6 @@ const subscriptionSchema = new mongoose.Schema({
   },
   paymentDay: {
     type: Number,
-    required: true,
     min: 1,
     max: 31
   },
@@ -42,7 +47,7 @@ const subscriptionSchema = new mongoose.Schema({
   timestamps: true
 });
 
-subscriptionSchema.index({ userId: 1, createdAt: -1 });
+subscriptionSchema.index({ userId: 1, categoryId: 1, createdAt: -1 });
 
 const Subscription = mongoose.model('Subscription', subscriptionSchema);
 export default Subscription;

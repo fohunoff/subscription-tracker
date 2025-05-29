@@ -9,6 +9,7 @@ import { dirname, join } from 'path';
 
 import authRoutes from './routes/auth.js';
 import subscriptionRoutes from './routes/subscriptions.js';
+import categoriesRoutes from './routes/categories.js';
 import statsRoutes from './routes/stats.js';
 import healthRoutes from './routes/health.js';
 
@@ -61,6 +62,7 @@ const connectDB = async () => {
 // =====================
 app.use('/api/auth', authRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/categories', categoriesRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/health', healthRoutes);
 
