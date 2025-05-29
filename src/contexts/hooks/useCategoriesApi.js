@@ -16,7 +16,6 @@ export function useCategoriesApi(API_URL, token) {
       return data.categories;
     }
 
-
     // Создать категорию
     const createCategory = async (categoryData) => {
       const response = await fetch(`${API_URL}/categories`, {

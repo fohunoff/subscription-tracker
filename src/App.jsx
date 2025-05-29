@@ -273,29 +273,13 @@ function AppContent() {
         </header>
 
         <main className="space-y-8 flex-1">
-          {/* Общая статистика */}
-          {subscriptions.length > 0 && (
-            <section className="bg-white dark:bg-slate-800 shadow-xl rounded-xl p-6 md:p-8">
-              <div className="text-center">
-                <h2 className="text-xl font-semibold text-slate-700 dark:text-slate-200 mb-2">
-                  Общие расходы
-                </h2>
-                <p className="text-4xl font-bold text-brand-primary mb-2">
-                  {formatCurrency(totalMonthlyCost, baseCurrency)}
-                </p>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Итого в месяц • {subscriptions.length} подписок
-                </p>
-              </div>
-            </section>
-          )}
 
           {/* Управление категориями */}
-          <section className="bg-white dark:bg-slate-800 shadow-xl rounded-xl p-6 md:p-8">
+          <section className="">
             <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-6">
               <h2 className="text-2xl font-semibold text-slate-700 dark:text-slate-200 mb-4 sm:mb-0 flex items-center gap-2">
-                <TagIcon className="h-6 w-6 text-brand-primary" />
-                Категории
+                {/* <TagIcon className="h-6 w-6 text-brand-primary" />
+                Категории */}
                 {isLoadingCategories && (
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-brand-primary"></div>
                 )}
@@ -318,6 +302,23 @@ function AppContent() {
                 </button>
               </div>
             </div>
+
+          {/* Общая статистика */}
+          {subscriptions.length > 0 && (
+            <section className="bg-white dark:bg-slate-800 rounded-xl p-6 md:p-8 mb-6">
+              <div className="text-center">
+                <h2 className="text-xl font-semibold text-slate-700 dark:text-slate-200 mb-2">
+                  Общие расходы
+                </h2>
+                <p className="text-4xl font-bold text-brand-primary mb-2">
+                  {formatCurrency(totalMonthlyCost, baseCurrency)}
+                </p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Итого в месяц • {subscriptions.length} подписок
+                </p>
+              </div>
+            </section>
+          )}
 
             {isLoadingCategories ? (
               <div className="text-center py-8">
@@ -354,7 +355,7 @@ function AppContent() {
           </section>
           
           {/* Секция экспорта для Telegram */}
-          <section aria-labelledby="telegram-export-heading" className="bg-white dark:bg-slate-800 shadow-xl rounded-xl p-6 md:p-8">
+          <section aria-labelledby="telegram-export-heading" className="bg-white dark:bg-slate-800 rounded-xl p-6 md:p-8">
             <h2 id="telegram-export-heading" className="text-2xl font-semibold text-slate-700 dark:text-slate-200 mb-3">
               Уведомления в Telegram
             </h2>

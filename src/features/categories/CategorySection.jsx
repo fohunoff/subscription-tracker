@@ -48,7 +48,7 @@ function CategorySection({
   };
 
   return (
-    <section className="bg-white dark:bg-slate-800 shadow-xl rounded-xl p-6 md:p-8">
+    <section className="bg-white dark:bg-slate-800 rounded-xl p-6 md:p-8">
       <div 
         className="flex flex-col sm:flex-row justify-between sm:items-center mb-6 select-none cursor-pointer group" 
         onClick={() => setIsExpanded(v => !v)}
