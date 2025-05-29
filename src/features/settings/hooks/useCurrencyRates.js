@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useLocalStorage } from '../../../shared/hooks';
+import { useToast } from '../../notifications';
 
 const FALLBACK_CURRENCY_RATES = {
   RUB: 1,
@@ -8,13 +9,16 @@ const FALLBACK_CURRENCY_RATES = {
   RSD: 0.83,
 };
 
+
 export function useCurrencyRates() {
   const [currencyRates, setCurrencyRates] = useState(FALLBACK_CURRENCY_RATES);
   const [isRatesLoading, setIsRatesLoading] = useState(false);
   const [lastRatesUpdate, setLastRatesUpdateRaw] = useLocalStorage('lastRatesUpdate', null);
   const setLastRatesUpdate = (date) => setLastRatesUpdateRaw(date ? date.toISOString() : null);
+  
+  const { showToast } = useToast();
 
-  const fetchRates = useCallback(async (showToast) => {
+  const fetchRates = useCallback(async () => {
     setIsRatesLoading(true);
     try {
       const res = await fetch('https://api.exchangerate.host/latest?base=RUB&symbols=USD,EUR,RSD');

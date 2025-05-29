@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { jwtDecode } from 'jwt-decode';
-import { useLocalStorage } from '../shared/hooks';
+
+import { useCategoriesApi, useStatsApi, useSubscriptionsApi } from './hooks';
 
 const AuthContext = createContext();
 
@@ -17,7 +18,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [token, setToken] = useLocalStorage('authToken', null);
+  const [token, setToken] = useState(localStorage.getItem('authToken'));
 
   // Проверка токена при загрузке
   useEffect(() => {
@@ -124,119 +125,14 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // API методы для работы с подписками
+  const categoriesApi = useCategoriesApi(API_URL, token);
+  const subscriptionsApi = useSubscriptionsApi(API_URL, token);
+  const statsApi = useStatsApi(API_URL, token);
+
   const api = {
-    // Получить все подписки
-    getSubscriptions: async () => {
-      const response = await fetch(`${API_URL}/subscriptions`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error('Ошибка получения подписок');
-      }
-      
-      const data = await response.json();
-      return data.subscriptions;
-    },
-
-    // Создать подписку
-    createSubscription: async (subscriptionData) => {
-      const response = await fetch(`${API_URL}/subscriptions`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(subscriptionData)
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Ошибка создания подписки');
-      }
-      
-      const data = await response.json();
-      return data.subscription;
-    },
-
-    // Обновить подписку
-    updateSubscription: async (id, subscriptionData) => {
-      const response = await fetch(`${API_URL}/subscriptions/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(subscriptionData)
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Ошибка обновления подписки');
-      }
-      
-      const data = await response.json();
-      return data.subscription;
-    },
-
-    // Удалить подписку
-    deleteSubscription: async (id) => {
-      const response = await fetch(`${API_URL}/subscriptions/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Ошибка удаления подписки');
-      }
-      
-      return true;
-    },
-
-    // Импорт подписок
-    importSubscriptions: async (subscriptions) => {
-      const response = await fetch(`${API_URL}/subscriptions/import`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ subscriptions })
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Ошибка импорта подписок');
-      }
-      
-      const data = await response.json();
-      return data;
-    },
-
-    // Получить статистику
-    getStats: async () => {
-      const response = await fetch(`${API_URL}/stats`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error('Ошибка получения статистики');
-      }
-      
-      const data = await response.json();
-      return data.stats;
-    }
+    ...categoriesApi, // API методы для работы с категориями
+    ...subscriptionsApi, // API методы для работы с подписками
+    ...statsApi, // API методы для статистики
   };
 
   const value = {

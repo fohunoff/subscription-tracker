@@ -8,11 +8,14 @@ function CategorySection({
   subscriptions, 
   currencyRates, 
   baseCurrency,
-  onDeleteSubscription, 
-  onEditSubscription,
+
   onAddSubscription,
+  onEditSubscription,
+  onDeleteSubscription, 
+  
   onEditCategory,
   onDeleteCategory,
+  
   isLoadingData 
 }) {
   const [isExpanded, setIsExpanded] = useState(true);
