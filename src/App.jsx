@@ -175,6 +175,7 @@ function AppContent() {
         >
           <Cog6ToothIcon className="h-7 w-7 text-slate-600" />
         </button>
+        
         <UserMenu />
       </div>
 

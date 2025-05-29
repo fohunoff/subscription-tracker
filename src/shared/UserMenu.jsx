@@ -45,9 +45,9 @@ const UserMenu = () => {
         ) : (
           <UserCircleIcon className="w-8 h-8 text-slate-600" />
         )}
-        <span className="hidden sm:block text-slate-700 font-medium max-w-32 truncate">
+        {/* <span className="hidden sm:block text-slate-700 font-medium max-w-32 truncate">
           {user.name}
-        </span>
+        </span> */}
         <ChevronDownIcon 
           className={`w-4 h-4 text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} 
         />
