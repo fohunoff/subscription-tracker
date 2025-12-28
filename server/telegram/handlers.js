@@ -158,6 +158,40 @@ function getNextPaymentDate(subscription) {
 }
 
 /**
+ * Получить дату платежа в конкретном месяце/году
+ */
+function getPaymentDateInMonth(subscription, month, year) {
+  if (!subscription.fullPaymentDate) return null;
+
+  const startDate = new Date(subscription.fullPaymentDate);
+  const paymentDay = startDate.getDate();
+
+  if (subscription.cycle === 'monthly') {
+    // Для ежемесячных - берём тот же день в указанном месяце
+    return new Date(year, month, paymentDay);
+  } else if (subscription.cycle === 'annually') {
+    // Для ежегодных - проверяем, попадает ли оплата в этот месяц/год
+    const startMonth = startDate.getMonth();
+    const startYear = startDate.getFullYear();
+
+    // Вычисляем в каком году должен быть платёж для текущего месяца
+    let paymentYear = year;
+
+    // Если месяц платежа совпадает с месяцем старта
+    if (month === startMonth) {
+      // Проверяем, был ли уже платёж в этом году
+      if (year >= startYear) {
+        return new Date(year, month, paymentDay);
+      }
+    }
+
+    return null; // Платёж не в этом месяце
+  }
+
+  return null;
+}
+
+/**
  * Форматировать сумму с валютой
  */
 function formatAmount(cost, currency) {
@@ -209,15 +243,24 @@ export const handleMonth = async (ctx) => {
     today.setHours(0, 0, 0, 0);
 
     // Фильтруем подписки, у которых платёж в текущем месяце
-    const monthSubscriptions = subscriptions.filter(sub => {
-      if (!sub.fullPaymentDate) return false;
+    const monthSubscriptions = [];
+    const paidSubscriptions = [];
+    const upcomingSubscriptions = [];
 
-      const nextPayment = getNextPaymentDate(sub);
-      if (!nextPayment) return false;
+    for (const sub of subscriptions) {
+      const paymentDateInMonth = getPaymentDateInMonth(sub, currentMonth, currentYear);
 
-      return nextPayment.getMonth() === currentMonth &&
-             nextPayment.getFullYear() === currentYear;
-    });
+      if (paymentDateInMonth) {
+        monthSubscriptions.push({ sub, paymentDate: paymentDateInMonth });
+
+        // Разделяем на оплаченные и предстоящие
+        if (paymentDateInMonth < today) {
+          paidSubscriptions.push({ sub, paymentDate: paymentDateInMonth });
+        } else {
+          upcomingSubscriptions.push({ sub, paymentDate: paymentDateInMonth });
+        }
+      }
+    }
 
     if (monthSubscriptions.length === 0) {
       await ctx.reply(
@@ -227,52 +270,34 @@ export const handleMonth = async (ctx) => {
       return;
     }
 
-    // Разделяем на оплаченные и предстоящие
-    const paidSubscriptions = [];
-    const upcomingSubscriptions = [];
-
-    for (const sub of monthSubscriptions) {
-      const nextPayment = getNextPaymentDate(sub);
-      if (nextPayment < today) {
-        paidSubscriptions.push(sub);
-      } else {
-        upcomingSubscriptions.push(sub);
-      }
-    }
-
     // Функция для группировки подписок по категориям
-    const groupByCategory = (subs) => {
+    const groupByCategory = (items) => {
       const grouped = {};
-      for (const sub of subs) {
-        const categoryName = sub.categoryId?.name || 'Без категории';
+      for (const item of items) {
+        const categoryName = item.sub.categoryId?.name || 'Без категории';
         if (!grouped[categoryName]) {
           grouped[categoryName] = [];
         }
-        grouped[categoryName].push(sub);
+        grouped[categoryName].push(item);
       }
       return grouped;
     };
 
     // Функция для форматирования списка подписок
-    const formatSubscriptionList = (subs) => {
+    const formatSubscriptionList = (items) => {
       let text = '';
       let totalCost = 0;
 
-      const grouped = groupByCategory(subs);
+      const grouped = groupByCategory(items);
 
-      for (const [categoryName, categorySubs] of Object.entries(grouped)) {
+      for (const [categoryName, categoryItems] of Object.entries(grouped)) {
         text += `<b>${categoryName}</b>\n`;
 
         // Сортируем по дате
-        categorySubs.sort((a, b) => {
-          const dateA = getNextPaymentDate(a);
-          const dateB = getNextPaymentDate(b);
-          return dateA - dateB;
-        });
+        categoryItems.sort((a, b) => a.paymentDate - b.paymentDate);
 
-        for (const sub of categorySubs) {
-          const nextPayment = getNextPaymentDate(sub);
-          const dateStr = nextPayment.toLocaleDateString('ru-RU', {
+        for (const { sub, paymentDate } of categoryItems) {
+          const dateStr = paymentDate.toLocaleDateString('ru-RU', {
             day: 'numeric',
             month: 'short'
           });
