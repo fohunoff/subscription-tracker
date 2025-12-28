@@ -28,6 +28,9 @@ router.get('/', authenticateToken, async (req, res) => {
         hasReminders: sub.categoryId.hasReminders,
         color: sub.categoryId.color
       },
+      notificationsEnabled: sub.notificationsEnabled || false,
+      notifyDaysBefore: sub.notifyDaysBefore || [],
+      lastNotificationSent: sub.lastNotificationSent,
       createdAt: sub.createdAt,
       updatedAt: sub.updatedAt
     }));
@@ -42,7 +45,7 @@ router.get('/', authenticateToken, async (req, res) => {
 // Создание новой подписки
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    const { name, cost, currency, cycle, paymentDay, fullPaymentDate, categoryId } = req.body;
+    const { name, cost, currency, cycle, paymentDay, fullPaymentDate, categoryId, notificationsEnabled, notifyDaysBefore } = req.body;
 
     // Проверяем, что категория существует и принадлежит пользователю
     const category = await Category.findOne({ 
@@ -72,6 +75,14 @@ router.post('/', authenticateToken, async (req, res) => {
       subscriptionData.fullPaymentDate = fullPaymentDate;
     }
 
+    // Добавляем настройки уведомлений
+    if (notificationsEnabled !== undefined) {
+      subscriptionData.notificationsEnabled = notificationsEnabled;
+    }
+    if (notifyDaysBefore !== undefined && Array.isArray(notifyDaysBefore)) {
+      subscriptionData.notifyDaysBefore = notifyDaysBefore;
+    }
+
     validateSubscriptionData(subscriptionData, category.hasReminders);
 
     const newSubscription = await Subscription.create({
@@ -99,6 +110,9 @@ router.post('/', authenticateToken, async (req, res) => {
           hasReminders: populatedSubscription.categoryId.hasReminders,
           color: populatedSubscription.categoryId.color
         },
+        notificationsEnabled: populatedSubscription.notificationsEnabled || false,
+        notifyDaysBefore: populatedSubscription.notifyDaysBefore || [],
+        lastNotificationSent: populatedSubscription.lastNotificationSent,
         createdAt: populatedSubscription.createdAt,
         updatedAt: populatedSubscription.updatedAt
       },
@@ -114,7 +128,7 @@ router.post('/', authenticateToken, async (req, res) => {
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, cost, currency, cycle, paymentDay, fullPaymentDate, categoryId } = req.body;
+    const { name, cost, currency, cycle, paymentDay, fullPaymentDate, categoryId, notificationsEnabled, notifyDaysBefore } = req.body;
 
     const subscription = await Subscription.findOne({ _id: id, userId: req.userDoc._id }).populate('categoryId');
     if (!subscription) {
@@ -179,6 +193,14 @@ router.put('/:id', authenticateToken, async (req, res) => {
       updateData.fullPaymentDate = undefined;
     }
 
+    // Обновление настроек уведомлений
+    if (notificationsEnabled !== undefined) {
+      updateData.notificationsEnabled = notificationsEnabled;
+    }
+    if (notifyDaysBefore !== undefined && Array.isArray(notifyDaysBefore)) {
+      updateData.notifyDaysBefore = notifyDaysBefore;
+    }
+
     const updatedSubscription = await Subscription.findByIdAndUpdate(
       id,
       updateData,
@@ -202,6 +224,9 @@ router.put('/:id', authenticateToken, async (req, res) => {
           hasReminders: updatedSubscription.categoryId.hasReminders,
           color: updatedSubscription.categoryId.color
         },
+        notificationsEnabled: updatedSubscription.notificationsEnabled || false,
+        notifyDaysBefore: updatedSubscription.notifyDaysBefore || [],
+        lastNotificationSent: updatedSubscription.lastNotificationSent,
         createdAt: updatedSubscription.createdAt,
         updatedAt: updatedSubscription.updatedAt
       },
