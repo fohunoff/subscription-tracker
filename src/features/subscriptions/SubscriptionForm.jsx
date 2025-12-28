@@ -300,7 +300,12 @@ function SubscriptionForm({
       <div className="pt-2">
         <button
           type="submit"
-          className="w-full flex items-center justify-center gap-2 bg-brand-secondary hover:bg-emerald-600 text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-opacity-75"
+          disabled={notificationsEnabled && notifyDaysBefore.length === 0}
+          className={`w-full flex items-center justify-center gap-2 font-semibold py-3 px-4 rounded-lg shadow-md transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-opacity-75 ${
+            notificationsEnabled && notifyDaysBefore.length === 0
+              ? 'bg-slate-300 dark:bg-slate-600 text-slate-500 dark:text-slate-400 cursor-not-allowed'
+              : 'bg-brand-secondary hover:bg-emerald-600 text-white hover:shadow-lg focus:ring-emerald-500'
+          }`}
         >
           {isEditMode ? <CheckCircleIcon className="h-5 w-5" /> : <PlusCircleIcon className="h-5 w-5" />}
           {isEditMode ? 'Сохранить изменения' : 'Добавить подписку'}
