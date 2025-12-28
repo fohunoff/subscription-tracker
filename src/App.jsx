@@ -353,16 +353,16 @@ function AppContent() {
             )}
           </section>
           
-          {/* Секция экспорта для Telegram */}
-          <section aria-labelledby="telegram-export-heading" className="bg-white dark:bg-slate-800 rounded-xl p-6 md:p-8">
-            <h2 id="telegram-export-heading" className="text-2xl font-semibold text-slate-700 dark:text-slate-200 mb-3">
-              Уведомления в Telegram
+          {/* Секция импорта/экспорта подписок */}
+          <section aria-labelledby="import-export-heading" className="bg-white dark:bg-slate-800 rounded-xl p-6 md:p-8">
+            <h2 id="import-export-heading" className="text-2xl font-semibold text-slate-700 dark:text-slate-200 mb-3">
+              Импорт / Экспорт подписок
             </h2>
             <p className="text-slate-600 dark:text-slate-300 mb-4">
-              Экспортируйте данные для вашего Telegram-бота, чтобы получать своевременные напоминания о предстоящих платежах.
+              Экспортируйте свои подписки в JSON-файл для резервного копирования или импортируйте данные из файла.
             </p>
-            <ExportData 
-              subscriptions={subscriptions} 
+            <ExportData
+              subscriptions={subscriptions}
               onImport={handleImportSubscriptions}
               categories={categories}
             />
