@@ -99,12 +99,6 @@ const startServer = async () => {
   try {
     await connectDB();
 
-    // Инициализация и запуск Telegram бота
-    const bot = initBot(process.env.TELEGRAM_BOT_TOKEN);
-    if (bot) {
-      await startBot();
-    }
-
     const PORT = process.env.PORT || 5000;
 
     const server = app.listen(PORT, '0.0.0.0', () => {
@@ -129,6 +123,12 @@ const startServer = async () => {
       }
       if (!process.env.TELEGRAM_BOT_USERNAME) {
         console.warn('⚠️  TELEGRAM_BOT_USERNAME не установлен');
+      }
+
+      // Запускаем Telegram бота ПОСЛЕ запуска HTTP сервера
+      const bot = initBot(process.env.TELEGRAM_BOT_TOKEN);
+      if (bot) {
+        startBot(); // Без await - запускаем в фоне
       }
     });
 
