@@ -73,7 +73,7 @@ function CategorySection({
   return (
     <section className="bg-white dark:bg-slate-800 rounded-xl p-6 md:p-8 relative">
       {/* Иконки управления - абсолютное позиционирование */}
-      <div className="absolute top-4 right-4 flex items-center gap-2 z-10" onClick={(e) => e.stopPropagation()}>
+      <div className="absolute top-4 right-8 flex items-center gap-2 z-10" onClick={(e) => e.stopPropagation()}>
         <button
           onClick={handleToggleSort}
           className={`p-2 rounded-md ${
@@ -133,7 +133,7 @@ function CategorySection({
           </h2>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+        <div className="flex flex-col justify-between sm:flex-row items-start sm:items-center gap-4">
           {categorySubscriptions.length > 0 && (
             <div className="text-left">
               <span className="text-sm text-slate-500 dark:text-slate-400 block">

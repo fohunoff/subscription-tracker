@@ -49,7 +49,8 @@ function SubscriptionItem({ subscription, onDeleteSubscription, onEditSubscripti
       <div className="flex items-center space-x-2 self-start sm:self-center">
         {/* Иконка статуса уведомлений */}
         <div
-          className={`p-2 rounded-md ${
+          onClick={() => onEditSubscription(subscription)}
+          className={`p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-opacity-50 transition-colors duration-150 ${
             subscription.notificationsEnabled
               ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20'
               : 'text-slate-400 bg-slate-100 dark:bg-slate-700/30'
