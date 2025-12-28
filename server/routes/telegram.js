@@ -11,7 +11,7 @@ const router = Router();
  */
 router.post('/generate-token', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.userDoc._id;
 
     // Генерируем случайный токен
     const token = crypto.randomBytes(16).toString('hex');
@@ -50,7 +50,7 @@ router.post('/generate-token', authenticateToken, async (req, res) => {
  */
 router.get('/status', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.userDoc._id;
 
     const user = await User.findById(userId).select(
       'telegramChatId telegramUsername telegramConnectedAt'
@@ -87,7 +87,7 @@ router.get('/status', authenticateToken, async (req, res) => {
  */
 router.delete('/disconnect', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.userDoc._id;
 
     await User.findByIdAndUpdate(userId, {
       telegramChatId: null,
