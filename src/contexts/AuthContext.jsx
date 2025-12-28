@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { jwtDecode } from 'jwt-decode';
 
-import { useCategoriesApi, useStatsApi, useSubscriptionsApi } from './hooks';
+import { useCategoriesApi, useStatsApi, useSubscriptionsApi, useTelegramApi } from './hooks';
 
 const AuthContext = createContext();
 
@@ -128,11 +128,13 @@ export const AuthProvider = ({ children }) => {
   const categoriesApi = useCategoriesApi(API_URL, token);
   const subscriptionsApi = useSubscriptionsApi(API_URL, token);
   const statsApi = useStatsApi(API_URL, token);
+  const telegramApi = useTelegramApi(API_URL, token);
 
   const api = {
     ...categoriesApi, // API методы для работы с категориями
     ...subscriptionsApi, // API методы для работы с подписками
     ...statsApi, // API методы для статистики
+    ...telegramApi, // API методы для Telegram
   };
 
   const value = {

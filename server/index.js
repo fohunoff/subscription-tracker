@@ -12,6 +12,8 @@ import subscriptionRoutes from './routes/subscriptions.js';
 import categoriesRoutes from './routes/categories.js';
 import statsRoutes from './routes/stats.js';
 import healthRoutes from './routes/health.js';
+import telegramRoutes from './routes/telegram.js';
+import { initBot, startBot, stopBot } from './telegram/bot.js';
 
 // Настройка __dirname для ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -65,6 +67,7 @@ app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/health', healthRoutes);
+app.use('/api/telegram', telegramRoutes);
 
 // =====================
 // ОБРАБОТКА ОШИБОК
@@ -96,8 +99,14 @@ const startServer = async () => {
   try {
     await connectDB();
 
+    // Инициализация и запуск Telegram бота
+    const bot = initBot(process.env.TELEGRAM_BOT_TOKEN);
+    if (bot) {
+      await startBot();
+    }
+
     const PORT = process.env.PORT || 5000;
-    
+
     const server = app.listen(PORT, () => {
       console.log(`🚀 Сервер запущен на порту ${PORT}`);
       console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
@@ -114,11 +123,22 @@ const startServer = async () => {
       if (!process.env.JWT_SECRET) {
         console.warn('⚠️  JWT_SECRET не установлен, используется fallback ключ');
       }
+      // Проверка Telegram переменных
+      if (!process.env.TELEGRAM_BOT_TOKEN) {
+        console.warn('⚠️  TELEGRAM_BOT_TOKEN не установлен, Telegram уведомления не будут работать');
+      }
+      if (!process.env.TELEGRAM_BOT_USERNAME) {
+        console.warn('⚠️  TELEGRAM_BOT_USERNAME не установлен');
+      }
     });
 
     // Graceful shutdown
     const gracefulShutdown = async (signal) => {
       console.log(`\n${signal} получен, завершаю сервер...`);
+
+      // Останавливаем Telegram бота
+      await stopBot();
+
       server.close(async (err) => {
         if (err) {
           console.error('Ошибка при закрытии сервера:', err);

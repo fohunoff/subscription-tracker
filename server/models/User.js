@@ -30,6 +30,27 @@ const userSchema = new mongoose.Schema({
   lastLogin: {
     type: Date,
     default: Date.now
+  },
+  // Telegram integration fields
+  telegramChatId: {
+    type: String,
+    unique: true,
+    sparse: true, // Allows null values to be non-unique
+    index: true
+  },
+  telegramUsername: {
+    type: String
+  },
+  telegramConnectionToken: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
+  telegramConnectionTokenExpires: {
+    type: Date
+  },
+  telegramConnectedAt: {
+    type: Date
   }
 }, {
   timestamps: true

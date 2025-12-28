@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal } from '../../shared';
 import { formatDate } from '../../shared/utils';
+import TelegramConnection from './TelegramConnection';
 
 const SettingsModal = ({
   isOpen,
@@ -73,6 +74,11 @@ const SettingsModal = ({
           </button>
         </div>
         <div className="mt-1 text-xs text-slate-400 dark:text-slate-500">Выберите внешний вид приложения</div>
+      </div>
+
+      {/* Telegram уведомления */}
+      <div className="pt-4 border-t border-slate-200 dark:border-slate-700">
+        <TelegramConnection />
       </div>
     </div>
   </Modal>
