@@ -19,6 +19,8 @@ function SubscriptionForm({
   const [cycle, setCycle] = useState('monthly');
   const [paymentDate, setPaymentDate] = useState(null);
   const [categoryId, setCategoryId] = useState('');
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [notifyDaysBefore, setNotifyDaysBefore] = useState([]);
 
   // Определяем, нужно ли показывать календарь
   const currentCategory = categories.find(cat => cat.id === categoryId);
@@ -31,6 +33,8 @@ function SubscriptionForm({
       setCurrency(initialData.currency);
       setCycle(initialData.cycle);
       setCategoryId(initialData.categoryId);
+      setNotificationsEnabled(initialData.notificationsEnabled || false);
+      setNotifyDaysBefore(initialData.notifyDaysBefore || []);
       
       if (initialData.fullPaymentDate) {
         setPaymentDate(new Date(initialData.fullPaymentDate));
@@ -51,6 +55,8 @@ function SubscriptionForm({
       setCurrency('RUB');
       setCycle('monthly');
       setPaymentDate(null);
+      setNotificationsEnabled(false);
+      setNotifyDaysBefore([]);
       
       // Если передана выбранная категория, устанавливаем её
       if (selectedCategory) {
@@ -96,6 +102,10 @@ function SubscriptionForm({
       subscriptionData.fullPaymentDate = paymentDate.toISOString();
     }
 
+    // Добавляем настройки уведомлений
+    subscriptionData.notificationsEnabled = notificationsEnabled;
+    subscriptionData.notifyDaysBefore = notifyDaysBefore;
+
     if (isEditMode && initialData) {
       onUpdateSubscription(initialData.id, subscriptionData);
     } else {
@@ -118,6 +128,14 @@ function SubscriptionForm({
     </button>
   ));
   CustomDatePickerInput.displayName = 'CustomDatePickerInput';
+
+  const handleDayToggle = (day) => {
+    setNotifyDaysBefore(prev =>
+      prev.includes(day)
+        ? prev.filter(d => d !== day)
+        : [...prev, day].sort((a, b) => a - b)
+    );
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -223,6 +241,58 @@ function SubscriptionForm({
               popperClassName="z-[9999]"
               portalId="root-portal"
             />
+          </div>
+        )}
+      </div>
+
+      {/* Секция уведомлений в Telegram */}
+      <div className="pt-4 border-t border-slate-200 dark:border-slate-700">
+        <div className="mb-4">
+          <label className="flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={notificationsEnabled}
+              onChange={(e) => setNotificationsEnabled(e.target.checked)}
+              className="rounded border-slate-300 text-brand-primary focus:ring-brand-primary focus:ring-opacity-50"
+            />
+            <span className="ml-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+              Включить уведомления в Telegram
+            </span>
+          </label>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 ml-6">
+            Бот будет напоминать о предстоящих платежах
+          </p>
+        </div>
+
+        {notificationsEnabled && (
+          <div className="ml-6 space-y-2">
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">
+              Напоминать за:
+            </p>
+            <div className="space-y-2">
+              {[
+                { value: 1, label: '1 день до платежа' },
+                { value: 3, label: '3 дня до платежа' },
+                { value: 7, label: '7 дней до платежа' }
+              ].map(({ value, label }) => (
+                <label key={value} className="flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={notifyDaysBefore.includes(value)}
+                    onChange={() => handleDayToggle(value)}
+                    className="rounded border-slate-300 text-brand-primary focus:ring-brand-primary focus:ring-opacity-50"
+                  />
+                  <span className="ml-2 text-sm text-slate-600 dark:text-slate-300">
+                    {label}
+                  </span>
+                </label>
+              ))}
+            </div>
+            {notifyDaysBefore.length === 0 && (
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                Выберите хотя бы один период для уведомлений
+              </p>
+            )}
           </div>
         )}
       </div>

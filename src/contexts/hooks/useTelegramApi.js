@@ -53,9 +53,30 @@ export function useTelegramApi(API_URL, token) {
     return true;
   };
 
+  // Обновить время уведомлений
+  const updateNotificationTime = async (notificationTime) => {
+    const response = await fetch(`${API_URL}/auth/notification-settings`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ notificationTime })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Ошибка обновления времени уведомлений');
+    }
+
+    const data = await response.json();
+    return data;
+  };
+
   return {
     getTelegramStatus,
     generateTelegramToken,
-    disconnectTelegram
+    disconnectTelegram,
+    updateNotificationTime
   };
 }
