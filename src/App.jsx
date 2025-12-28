@@ -32,7 +32,6 @@ function AppContent() {
 
   const {
     categories,
-    setCategories,
     isLoadingCategories,
     loadCategories,
     addCategory,
@@ -51,7 +50,7 @@ function AppContent() {
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
   const [baseCurrency, setBaseCurrency] = React.useState(localStorage.getItem('baseCurrency') || 'RUB');
   const [theme, setTheme] = useTheme('light');
-  const [isSubsOpen, setIsSubsOpen] = React.useState(true);
+  // const [isSubsOpen, setIsSubsOpen] = React.useState(true);
 
   // ✅ ВСЕ useEffect ХУКИ
   // Загружаем подписки после авторизации
