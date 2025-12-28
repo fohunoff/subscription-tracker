@@ -337,6 +337,7 @@ function AppContent() {
                     onEditSubscription={handleOpenEditModal}
                     onAddSubscription={() => openAddSubscriptionModal(category)}
                     onEditCategory={handleOpenEditCategoryModal}
+                    onUpdateCategory={handleUpdateCategory}
                     onDeleteCategory={handleDeleteCategory}
                     isLoadingData={isLoadingData}
                   />

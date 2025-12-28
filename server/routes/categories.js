@@ -30,6 +30,7 @@ router.get('/', authenticateToken, async (req, res) => {
       color: cat.color,
       isDefault: cat.isDefault,
       order: cat.order,
+      sortBy: cat.sortBy || 'alphabetical',
       createdAt: cat.createdAt,
       updatedAt: cat.updatedAt
     }));
@@ -81,6 +82,7 @@ router.post('/', authenticateToken, async (req, res) => {
         color: newCategory.color,
         isDefault: newCategory.isDefault,
         order: newCategory.order,
+        sortBy: newCategory.sortBy || 'alphabetical',
         createdAt: newCategory.createdAt,
         updatedAt: newCategory.updatedAt
       },
@@ -96,7 +98,7 @@ router.post('/', authenticateToken, async (req, res) => {
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, hasReminders, color } = req.body;
+    const { name, hasReminders, color, sortBy } = req.body;
 
     const category = await Category.findOne({ _id: id, userId: req.userDoc._id });
     if (!category) {
@@ -130,6 +132,12 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
     if (hasReminders !== undefined) updateData.hasReminders = hasReminders;
     if (color !== undefined) updateData.color = color;
+    if (sortBy !== undefined) {
+      if (!['alphabetical', 'paymentDate'].includes(sortBy)) {
+        return res.status(400).json({ message: 'Неверное значение sortBy' });
+      }
+      updateData.sortBy = sortBy;
+    }
 
     const updatedCategory = await Category.findByIdAndUpdate(
       id,
@@ -146,6 +154,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
         color: updatedCategory.color,
         isDefault: updatedCategory.isDefault,
         order: updatedCategory.order,
+        sortBy: updatedCategory.sortBy || 'alphabetical',
         createdAt: updatedCategory.createdAt,
         updatedAt: updatedCategory.updatedAt
       },

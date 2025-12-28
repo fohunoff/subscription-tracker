@@ -27,6 +27,11 @@ const categorySchema = new mongoose.Schema({
   order: {
     type: Number,
     default: 0 // Для сортировки категорий
+  },
+  sortBy: {
+    type: String,
+    enum: ['alphabetical', 'paymentDate'],
+    default: 'alphabetical' // Сортировка подписок в категории
   }
 }, {
   timestamps: true

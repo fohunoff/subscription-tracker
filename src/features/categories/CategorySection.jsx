@@ -1,23 +1,41 @@
-import React, { useState } from 'react';
-import { PlusIcon, PencilSquareIcon, TrashIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
+import React, { useState, useMemo } from 'react';
+import { PlusIcon, PencilSquareIcon, TrashIcon, ChevronDownIcon, Bars3BottomLeftIcon, CalendarDaysIcon } from '@heroicons/react/24/outline';
 import { SubscriptionList } from '../subscriptions';
 import { formatCurrency } from '../../shared/utils';
 
-function CategorySection({ 
-  category, 
-  subscriptions, 
-  currencyRates, 
+function CategorySection({
+  category,
+  subscriptions,
+  currencyRates,
   baseCurrency,
-  onDeleteSubscription, 
+  onDeleteSubscription,
   onEditSubscription,
   onAddSubscription,
   onEditCategory,
   onDeleteCategory,
-  isLoadingData 
+  onUpdateCategory,
+  isLoadingData
 }) {
   const [isExpanded, setIsExpanded] = useState(true);
 
   const categorySubscriptions = subscriptions.filter(sub => sub.categoryId === category.id);
+
+  // Сортировка подписок на основе category.sortBy
+  const sortedSubscriptions = useMemo(() => {
+    const sorted = [...categorySubscriptions];
+
+    if (category.sortBy === 'alphabetical') {
+      sorted.sort((a, b) => a.name.localeCompare(b.name));
+    } else if (category.sortBy === 'paymentDate') {
+      sorted.sort((a, b) => {
+        const dayA = a.paymentDay || 0;
+        const dayB = b.paymentDay || 0;
+        return dayA - dayB;
+      });
+    }
+
+    return sorted;
+  }, [categorySubscriptions, category.sortBy]);
 
   // Рассчитываем общую стоимость подписок в категории
   const totalMonthlyCost = categorySubscriptions.reduce((total, sub) => {
@@ -45,6 +63,11 @@ function CategorySection({
     if (window.confirm(`Вы действительно хотите удалить категорию "${category.name}"?`)) {
       onDeleteCategory(category.id);
     }
+  };
+
+  const handleToggleSort = async () => {
+    const newSortBy = category.sortBy === 'alphabetical' ? 'paymentDate' : 'alphabetical';
+    await onUpdateCategory(category.id, { sortBy: newSortBy });
   };
 
   return (
@@ -95,6 +118,22 @@ function CategorySection({
             </button>
 
             <button
+              onClick={handleToggleSort}
+              className={`p-2 rounded-md ${
+                category.sortBy === 'alphabetical'
+                  ? 'text-purple-600 bg-purple-100 dark:bg-purple-900/30'
+                  : 'text-orange-600 bg-orange-100 dark:bg-orange-900/30'
+              } hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50 transition-colors duration-150`}
+              title={category.sortBy === 'alphabetical' ? 'Сортировка: по алфавиту (клик - по дате)' : 'Сортировка: по дате платежа (клик - по алфавиту)'}
+            >
+              {category.sortBy === 'alphabetical' ? (
+                <Bars3BottomLeftIcon className="h-5 w-5" />
+              ) : (
+                <CalendarDaysIcon className="h-5 w-5" />
+              )}
+            </button>
+
+            <button
               onClick={() => onEditCategory(category)}
               className="p-2 rounded-md text-sky-600 hover:bg-sky-100 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-opacity-50 transition-colors duration-150"
               title="Редактировать категорию"
@@ -129,7 +168,7 @@ function CategorySection({
         ) : (
           <>
             <SubscriptionList
-              subscriptions={categorySubscriptions}
+              subscriptions={sortedSubscriptions}
               onDeleteSubscription={onDeleteSubscription}
               onEditSubscription={onEditSubscription}
             />
