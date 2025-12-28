@@ -1,5 +1,5 @@
 import { Telegraf } from 'telegraf';
-import { handleStart, handleStatus, handleHelp, handleUnknown } from './handlers.js';
+import { handleStart, handleStatus, handleHelp, handleMonth, handleUnknown } from './handlers.js';
 
 let bot = null;
 
@@ -18,6 +18,7 @@ export const initBot = (botToken) => {
     // Регистрируем обработчики команд
     bot.command('start', handleStart);
     bot.command('status', handleStatus);
+    bot.command('month', handleMonth);
     bot.command('help', handleHelp);
 
     // Обработчик неизвестных команд

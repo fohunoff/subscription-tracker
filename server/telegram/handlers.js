@@ -1,4 +1,6 @@
 import User from '../models/User.js';
+import Subscription from '../models/Subscription.js';
+import Category from '../models/Category.js';
 
 /**
  * Обработчик команды /start с токеном подключения
@@ -126,9 +128,172 @@ export const handleHelp = async (ctx) => {
     'Доступные команды:\n' +
     '/start ТОКЕН - Подключить Telegram к аккаунту\n' +
     '/status - Проверить статус подключения\n' +
+    '/month - Показать все подписки текущего месяца\n' +
     '/help - Показать эту справку\n\n' +
     'Для настройки уведомлений используйте веб-приложение.'
   );
+};
+
+/**
+ * Получить дату следующего платежа для подписки
+ */
+function getNextPaymentDate(subscription) {
+  if (!subscription.fullPaymentDate) return null;
+
+  const startDate = new Date(subscription.fullPaymentDate);
+  const today = new Date();
+  let nextDate = new Date(startDate);
+
+  if (subscription.cycle === 'monthly') {
+    while (nextDate <= today) {
+      nextDate.setMonth(nextDate.getMonth() + 1);
+    }
+  } else if (subscription.cycle === 'annually') {
+    while (nextDate <= today) {
+      nextDate.setFullYear(nextDate.getFullYear() + 1);
+    }
+  }
+
+  return nextDate;
+}
+
+/**
+ * Форматировать сумму с валютой
+ */
+function formatAmount(cost, currency) {
+  const symbols = {
+    'RUB': '₽',
+    'USD': '$',
+    'EUR': '€',
+    'RSD': 'дин.'
+  };
+  return `${cost} ${symbols[currency] || currency}`;
+}
+
+/**
+ * Обработчик команды /month - показывает все подписки текущего месяца
+ */
+export const handleMonth = async (ctx) => {
+  try {
+    const chatId = ctx.chat.id.toString();
+
+    // Находим пользователя
+    const user = await User.findOne({ telegramChatId: chatId });
+
+    if (!user) {
+      await ctx.reply(
+        '❌ Ваш Telegram не подключен к аккаунту.\n\n' +
+        'Используйте /start с токеном из настроек приложения.'
+      );
+      return;
+    }
+
+    // Получаем все подписки пользователя
+    const subscriptions = await Subscription.find({
+      userId: user._id
+    }).populate('categoryId');
+
+    if (subscriptions.length === 0) {
+      await ctx.reply(
+        '📭 У вас пока нет подписок.\n\n' +
+        'Добавьте подписки в веб-приложении, чтобы отслеживать расходы.'
+      );
+      return;
+    }
+
+    // Получаем текущий месяц и год
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    // Фильтруем подписки, у которых платёж в текущем месяце
+    const monthSubscriptions = subscriptions.filter(sub => {
+      if (!sub.fullPaymentDate) return false;
+
+      const nextPayment = getNextPaymentDate(sub);
+      if (!nextPayment) return false;
+
+      return nextPayment.getMonth() === currentMonth &&
+             nextPayment.getFullYear() === currentYear;
+    });
+
+    if (monthSubscriptions.length === 0) {
+      await ctx.reply(
+        `📅 В ${now.toLocaleString('ru-RU', { month: 'long' })} ${currentYear} нет запланированных платежей.\n\n` +
+        `Всего подписок: ${subscriptions.length}`
+      );
+      return;
+    }
+
+    // Группируем по категориям
+    const grouped = {};
+    for (const sub of monthSubscriptions) {
+      const categoryName = sub.categoryId?.name || 'Без категории';
+      if (!grouped[categoryName]) {
+        grouped[categoryName] = [];
+      }
+      grouped[categoryName].push(sub);
+    }
+
+    // Формируем сообщение
+    let message = `📅 <b>Подписки на ${now.toLocaleString('ru-RU', { month: 'long' })} ${currentYear}</b>\n\n`;
+
+    let totalCost = 0;
+
+    for (const [categoryName, subs] of Object.entries(grouped)) {
+      message += `<b>${categoryName}</b>\n`;
+
+      // Сортируем по дате
+      subs.sort((a, b) => {
+        const dateA = getNextPaymentDate(a);
+        const dateB = getNextPaymentDate(b);
+        return dateA - dateB;
+      });
+
+      for (const sub of subs) {
+        const nextPayment = getNextPaymentDate(sub);
+        const dateStr = nextPayment.toLocaleDateString('ru-RU', {
+          day: 'numeric',
+          month: 'short'
+        });
+        const amount = formatAmount(sub.cost, sub.currency);
+
+        // Конвертируем в месячную стоимость для годовых подписок
+        let monthlyCost = sub.cost;
+        if (sub.cycle === 'annually') {
+          monthlyCost = sub.cost / 12;
+        }
+
+        // Для расчёта общей суммы приводим к рублям (упрощённо, без курса)
+        totalCost += monthlyCost;
+
+        // Иконка уведомлений
+        const notifyIcon = sub.notificationsEnabled ? '🔔' : '🔕';
+
+        // Цикл платежа
+        const cycleIcon = sub.cycle === 'monthly' ? '📆' : '📅';
+
+        message += `  ${notifyIcon} ${sub.name}\n`;
+        message += `     ${amount} ${cycleIcon} ${sub.cycle === 'monthly' ? 'в месяц' : 'в год'}\n`;
+        message += `     💳 Платёж: ${dateStr}\n`;
+
+        if (sub.notificationsEnabled && sub.notifyDaysBefore?.length > 0) {
+          message += `     ⏰ Напомнить за: ${sub.notifyDaysBefore.join(', ')} дн.\n`;
+        }
+
+        message += '\n';
+      }
+    }
+
+    message += `\n📊 <b>Итого:</b> ${monthSubscriptions.length} подписок в этом месяце\n`;
+    message += `💰 Примерная сумма: ~${Math.round(totalCost)} ₽`;
+
+    await ctx.reply(message, { parse_mode: 'HTML' });
+
+  } catch (error) {
+    console.error('Ошибка в handleMonth:', error);
+    await ctx.reply('❌ Произошла ошибка при получении подписок.');
+  }
 };
 
 /**
