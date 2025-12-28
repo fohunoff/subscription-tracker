@@ -205,6 +205,8 @@ export const handleMonth = async (ctx) => {
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
     // Фильтруем подписки, у которых платёж в текущем месяце
     const monthSubscriptions = subscriptions.filter(sub => {
@@ -225,68 +227,116 @@ export const handleMonth = async (ctx) => {
       return;
     }
 
-    // Группируем по категориям
-    const grouped = {};
+    // Разделяем на оплаченные и предстоящие
+    const paidSubscriptions = [];
+    const upcomingSubscriptions = [];
+
     for (const sub of monthSubscriptions) {
-      const categoryName = sub.categoryId?.name || 'Без категории';
-      if (!grouped[categoryName]) {
-        grouped[categoryName] = [];
+      const nextPayment = getNextPaymentDate(sub);
+      if (nextPayment < today) {
+        paidSubscriptions.push(sub);
+      } else {
+        upcomingSubscriptions.push(sub);
       }
-      grouped[categoryName].push(sub);
     }
+
+    // Функция для группировки подписок по категориям
+    const groupByCategory = (subs) => {
+      const grouped = {};
+      for (const sub of subs) {
+        const categoryName = sub.categoryId?.name || 'Без категории';
+        if (!grouped[categoryName]) {
+          grouped[categoryName] = [];
+        }
+        grouped[categoryName].push(sub);
+      }
+      return grouped;
+    };
+
+    // Функция для форматирования списка подписок
+    const formatSubscriptionList = (subs) => {
+      let text = '';
+      let totalCost = 0;
+
+      const grouped = groupByCategory(subs);
+
+      for (const [categoryName, categorySubs] of Object.entries(grouped)) {
+        text += `<b>${categoryName}</b>\n`;
+
+        // Сортируем по дате
+        categorySubs.sort((a, b) => {
+          const dateA = getNextPaymentDate(a);
+          const dateB = getNextPaymentDate(b);
+          return dateA - dateB;
+        });
+
+        for (const sub of categorySubs) {
+          const nextPayment = getNextPaymentDate(sub);
+          const dateStr = nextPayment.toLocaleDateString('ru-RU', {
+            day: 'numeric',
+            month: 'short'
+          });
+          const amount = formatAmount(sub.cost, sub.currency);
+
+          // Конвертируем в месячную стоимость для годовых подписок
+          let monthlyCost = sub.cost;
+          if (sub.cycle === 'annually') {
+            monthlyCost = sub.cost / 12;
+          }
+
+          totalCost += monthlyCost;
+
+          // Иконка уведомлений
+          const notifyIcon = sub.notificationsEnabled ? '🔔' : '🔕';
+
+          // Цикл платежа
+          const cycleIcon = sub.cycle === 'monthly' ? '📆' : '📅';
+
+          text += `  ${notifyIcon} ${sub.name}\n`;
+          text += `     ${amount} ${cycleIcon} ${sub.cycle === 'monthly' ? 'в месяц' : 'в год'}\n`;
+          text += `     💳 Платёж: ${dateStr}\n`;
+
+          if (sub.notificationsEnabled && sub.notifyDaysBefore?.length > 0) {
+            text += `     ⏰ Напомнить за: ${sub.notifyDaysBefore.join(', ')} дн.\n`;
+          }
+
+          text += '\n';
+        }
+      }
+
+      return { text, totalCost };
+    };
 
     // Формируем сообщение
     let message = `📅 <b>Подписки на ${now.toLocaleString('ru-RU', { month: 'long' })} ${currentYear}</b>\n\n`;
 
-    let totalCost = 0;
+    let totalMonthCost = 0;
 
-    for (const [categoryName, subs] of Object.entries(grouped)) {
-      message += `<b>${categoryName}</b>\n`;
-
-      // Сортируем по дате
-      subs.sort((a, b) => {
-        const dateA = getNextPaymentDate(a);
-        const dateB = getNextPaymentDate(b);
-        return dateA - dateB;
-      });
-
-      for (const sub of subs) {
-        const nextPayment = getNextPaymentDate(sub);
-        const dateStr = nextPayment.toLocaleDateString('ru-RU', {
-          day: 'numeric',
-          month: 'short'
-        });
-        const amount = formatAmount(sub.cost, sub.currency);
-
-        // Конвертируем в месячную стоимость для годовых подписок
-        let monthlyCost = sub.cost;
-        if (sub.cycle === 'annually') {
-          monthlyCost = sub.cost / 12;
-        }
-
-        // Для расчёта общей суммы приводим к рублям (упрощённо, без курса)
-        totalCost += monthlyCost;
-
-        // Иконка уведомлений
-        const notifyIcon = sub.notificationsEnabled ? '🔔' : '🔕';
-
-        // Цикл платежа
-        const cycleIcon = sub.cycle === 'monthly' ? '📆' : '📅';
-
-        message += `  ${notifyIcon} ${sub.name}\n`;
-        message += `     ${amount} ${cycleIcon} ${sub.cycle === 'monthly' ? 'в месяц' : 'в год'}\n`;
-        message += `     💳 Платёж: ${dateStr}\n`;
-
-        if (sub.notificationsEnabled && sub.notifyDaysBefore?.length > 0) {
-          message += `     ⏰ Напомнить за: ${sub.notifyDaysBefore.join(', ')} дн.\n`;
-        }
-
-        message += '\n';
-      }
+    // Раздел оплаченных подписок
+    if (paidSubscriptions.length > 0) {
+      message += `✅ <b>Уже оплачено (${paidSubscriptions.length})</b>\n\n`;
+      const { text, totalCost } = formatSubscriptionList(paidSubscriptions);
+      message += text;
+      totalMonthCost += totalCost;
     }
 
-    message += `\n📊 <b>Итого:</b> ${monthSubscriptions.length} подписок в этом месяце\n`;
-    message += `💰 Примерная сумма: ~${Math.round(totalCost)} ₽`;
+    // Раздел предстоящих платежей
+    if (upcomingSubscriptions.length > 0) {
+      if (paidSubscriptions.length > 0) {
+        message += `\n━━━━━━━━━━━━━━━━━\n\n`;
+      }
+      message += `⏳ <b>Предстоящие платежи (${upcomingSubscriptions.length})</b>\n\n`;
+      const { text, totalCost } = formatSubscriptionList(upcomingSubscriptions);
+      message += text;
+      totalMonthCost += totalCost;
+    }
+
+    message += `\n📊 <b>Итого за месяц:</b> ${monthSubscriptions.length} подписок\n`;
+    message += `💰 <b>Примерная сумма:</b> ~${Math.round(totalMonthCost)} ₽`;
+
+    if (paidSubscriptions.length > 0 && upcomingSubscriptions.length > 0) {
+      message += `\n\n<i>✅ Оплачено: ${paidSubscriptions.length} | ⏳ Ожидается: ${upcomingSubscriptions.length}</i>`;
+    }
 
     await ctx.reply(message, { parse_mode: 'HTML' });
 
