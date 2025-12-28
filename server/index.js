@@ -14,6 +14,7 @@ import statsRoutes from './routes/stats.js';
 import healthRoutes from './routes/health.js';
 import telegramRoutes from './routes/telegram.js';
 import { initBot, startBot, stopBot } from './telegram/bot.js';
+import { startScheduler, stopScheduler } from './telegram/scheduler.js';
 
 // Настройка __dirname для ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -129,6 +130,7 @@ const startServer = async () => {
       const bot = initBot(process.env.TELEGRAM_BOT_TOKEN);
       if (bot) {
         startBot(); // Без await - запускаем в фоне
+        startScheduler(); // Запускаем scheduler для уведомлений
       }
     });
 
@@ -136,7 +138,8 @@ const startServer = async () => {
     const gracefulShutdown = async (signal) => {
       console.log(`\n${signal} получен, завершаю сервер...`);
 
-      // Останавливаем Telegram бота
+      // Останавливаем scheduler и Telegram бота
+      stopScheduler();
       await stopBot();
 
       server.close(async (err) => {

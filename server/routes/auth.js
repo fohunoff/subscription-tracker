@@ -75,7 +75,8 @@ router.get('/me', authenticateToken, (req, res) => {
       avatar: user.avatar,
       provider: user.provider,
       createdAt: user.createdAt,
-      lastLogin: user.lastLogin
+      lastLogin: user.lastLogin,
+      notificationTime: user.notificationTime || '10:00'
     }
   });
 });
@@ -83,6 +84,39 @@ router.get('/me', authenticateToken, (req, res) => {
 // Выход
 router.post('/logout', authenticateToken, (req, res) => {
   res.json({ success: true, message: 'Выход выполнен успешно' });
+});
+
+// Обновление настроек уведомлений
+router.patch('/notification-settings', authenticateToken, async (req, res) => {
+  try {
+    const { notificationTime } = req.body;
+    const user = req.userDoc;
+
+    if (notificationTime) {
+      // Валидация формата времени
+      if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(notificationTime)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Неверный формат времени. Используйте HH:MM (например, 10:00)'
+        });
+      }
+      user.notificationTime = notificationTime;
+    }
+
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Настройки уведомлений обновлены',
+      notificationTime: user.notificationTime
+    });
+  } catch (error) {
+    console.error('Ошибка обновления настроек:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Ошибка обновления настроек уведомлений'
+    });
+  }
 });
 
 export default router;

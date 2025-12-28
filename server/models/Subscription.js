@@ -42,6 +42,24 @@ const subscriptionSchema = new mongoose.Schema({
   },
   fullPaymentDate: {
     type: Date
+  },
+  // Настройки уведомлений
+  notificationsEnabled: {
+    type: Boolean,
+    default: false
+  },
+  notifyDaysBefore: {
+    type: [Number],
+    default: [],
+    validate: {
+      validator: function(arr) {
+        return arr.every(num => [1, 3, 7].includes(num));
+      },
+      message: 'Допустимые значения: 1, 3, 7 дней'
+    }
+  },
+  lastNotificationSent: {
+    type: Date
   }
 }, {
   timestamps: true

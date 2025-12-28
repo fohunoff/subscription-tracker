@@ -51,6 +51,17 @@ const userSchema = new mongoose.Schema({
   },
   telegramConnectedAt: {
     type: Date
+  },
+  // Настройки уведомлений
+  notificationTime: {
+    type: String,
+    default: '10:00', // Время в формате HH:MM
+    validate: {
+      validator: function(v) {
+        return /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(v);
+      },
+      message: 'Неверный формат времени. Используйте HH:MM'
+    }
   }
 }, {
   timestamps: true
