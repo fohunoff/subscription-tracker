@@ -111,10 +111,10 @@ function CategorySection({
 
       {/* Заголовок и статистика */}
       <div
-        className="select-none cursor-pointer group mb-6 pr-0 sm:pr-32"
+        className="select-none cursor-pointer group mb-6"
         onClick={() => setIsExpanded(v => !v)}
       >
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-3 mb-4 pr-0 sm:pr-32">
           <div
             className="w-4 h-4 rounded-full flex-shrink-0"
             style={{ backgroundColor: category.color }}

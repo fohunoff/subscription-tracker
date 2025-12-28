@@ -48,12 +48,12 @@ function SubscriptionItem({ subscription, onDeleteSubscription, onEditSubscripti
       </div>
       <div className="flex items-center space-x-2 self-start sm:self-center">
         {/* Иконка статуса уведомлений */}
-        <div
+        <button
           onClick={() => onEditSubscription(subscription)}
-          className={`p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-opacity-50 transition-colors duration-150 ${
+          className={`p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-opacity-50 transition-colors duration-150 ${
             subscription.notificationsEnabled
-              ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20'
-              : 'text-slate-400 bg-slate-100 dark:bg-slate-700/30'
+              ? 'focus:ring-emerald-500 text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20'
+              : 'focus:ring-slate-500 text-slate-400 bg-slate-100 dark:bg-slate-700/30'
           }`}
           title={subscription.notificationsEnabled ? `Уведомления включены (за ${subscription.notifyDaysBefore?.join(', ') || 0} дн.)` : 'Уведомления выключены'}
         >
@@ -62,7 +62,7 @@ function SubscriptionItem({ subscription, onDeleteSubscription, onEditSubscripti
           ) : (
             <BellSlashIcon className="h-5 w-5" />
           )}
-        </div>
+        </button>
 
         <button
           onClick={() => onEditSubscription(subscription)}
