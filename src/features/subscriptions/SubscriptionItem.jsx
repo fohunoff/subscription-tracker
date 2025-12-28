@@ -1,5 +1,5 @@
 import React from 'react';
-import { CalendarDaysIcon, TrashIcon, CurrencyDollarIcon, PencilSquareIcon } from '@heroicons/react/24/outline';
+import { CalendarDaysIcon, TrashIcon, CurrencyDollarIcon, PencilSquareIcon, BellIcon, BellSlashIcon } from '@heroicons/react/24/outline';
 import { formatCurrency } from '../../shared/utils';
 
 // fallback currency symbols
@@ -47,16 +47,32 @@ function SubscriptionItem({ subscription, onDeleteSubscription, onEditSubscripti
         </div>
       </div>
       <div className="flex items-center space-x-2 self-start sm:self-center">
+        {/* Иконка статуса уведомлений */}
+        <div
+          className={`p-2 rounded-md ${
+            subscription.notificationsEnabled
+              ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20'
+              : 'text-slate-400 bg-slate-100 dark:bg-slate-700/30'
+          }`}
+          title={subscription.notificationsEnabled ? `Уведомления включены (за ${subscription.notifyDaysBefore?.join(', ') || 0} дн.)` : 'Уведомления выключены'}
+        >
+          {subscription.notificationsEnabled ? (
+            <BellIcon className="h-5 w-5" />
+          ) : (
+            <BellSlashIcon className="h-5 w-5" />
+          )}
+        </div>
+
         <button
           onClick={() => onEditSubscription(subscription)}
-          className="p-2 rounded-md text-sky-600 hover:bg-sky-100 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-opacity-50 transition-colors duration-150"
+          className="p-2 rounded-md text-sky-600 hover:bg-sky-100 dark:hover:bg-sky-900/30 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-opacity-50 transition-colors duration-150"
           aria-label={`Редактировать подписку ${subscription.name}`}
         >
           <PencilSquareIcon className="h-5 w-5" />
         </button>
         <button
           onClick={() => onDeleteSubscription(subscription.id)}
-          className="p-2 rounded-md text-brand-danger hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-brand-danger focus:ring-opacity-50 transition-colors duration-150"
+          className="p-2 rounded-md text-brand-danger hover:bg-red-100 dark:hover:bg-red-900/30 focus:outline-none focus:ring-2 focus:ring-brand-danger focus:ring-opacity-50 transition-colors duration-150"
           aria-label={`Удалить подписку ${subscription.name}`}
         >
           <TrashIcon className="h-5 w-5" />

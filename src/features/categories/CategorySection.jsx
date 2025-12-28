@@ -72,17 +72,8 @@ function CategorySection({
 
   return (
     <section className="bg-white dark:bg-slate-800 rounded-xl p-6 md:p-8 relative">
-      {/* Кнопки управления - абсолютное позиционирование */}
+      {/* Иконки управления - абсолютное позиционирование */}
       <div className="absolute top-4 right-4 flex items-center gap-2 z-10" onClick={(e) => e.stopPropagation()}>
-        <button
-          onClick={() => onAddSubscription(category)}
-          className="flex items-center justify-center gap-2 bg-brand-secondary hover:bg-emerald-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-opacity-75"
-          title="Добавить подписку в эту категорию"
-        >
-          <PlusIcon className="h-4 w-4" />
-          <span className="hidden sm:inline">Добавить</span>
-        </button>
-
         <button
           onClick={handleToggleSort}
           className={`p-2 rounded-md ${
@@ -120,7 +111,7 @@ function CategorySection({
 
       {/* Заголовок и статистика */}
       <div
-        className="select-none cursor-pointer group mb-6 pr-0 sm:pr-48"
+        className="select-none cursor-pointer group mb-6 pr-0 sm:pr-32"
         onClick={() => setIsExpanded(v => !v)}
       >
         <div className="flex items-center gap-3 mb-4">
@@ -142,16 +133,30 @@ function CategorySection({
           </h2>
         </div>
 
-        {categorySubscriptions.length > 0 && (
-          <div className="text-left">
-            <span className="text-sm text-slate-500 dark:text-slate-400 block">
-              Итого в месяц ({categorySubscriptions.length}):
-            </span>
-            <p className="text-2xl font-bold" style={{ color: category.color }}>
-              {formatCurrency(totalInBaseCurrency, baseCurrency)}
-            </p>
-          </div>
-        )}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          {categorySubscriptions.length > 0 && (
+            <div className="text-left">
+              <span className="text-sm text-slate-500 dark:text-slate-400 block">
+                Итого в месяц ({categorySubscriptions.length}):
+              </span>
+              <p className="text-2xl font-bold" style={{ color: category.color }}>
+                {formatCurrency(totalInBaseCurrency, baseCurrency)}
+              </p>
+            </div>
+          )}
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddSubscription(category);
+            }}
+            className="flex items-center justify-center gap-2 bg-brand-secondary hover:bg-emerald-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-opacity-75"
+            title="Добавить подписку в эту категорию"
+          >
+            <PlusIcon className="h-4 w-4" />
+            <span className="hidden sm:inline">Добавить</span>
+          </button>
+        </div>
       </div>
 
       <div
