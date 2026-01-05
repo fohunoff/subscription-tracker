@@ -47,10 +47,12 @@ const TotalExpenses = ({
 
   // Вычисляем процент для каждой категории
   const categoriesWithPercentage = useMemo(() => {
-    return categoryExpenses.map(cat => ({
+    const result = categoryExpenses.map(cat => ({
       ...cat,
       percentage: totalMonthlyCost > 0 ? (cat.total / totalMonthlyCost) * 100 : 0
     }));
+    console.log('categoriesWithPercentage:', result);
+    return result;
   }, [categoryExpenses, totalMonthlyCost]);
 
   const handleCategoryClick = (categoryId) => {
