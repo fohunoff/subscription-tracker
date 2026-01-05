@@ -22,7 +22,7 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 function AppContent() {
   const { isAuthenticated, loading, api } = useAuth();
   const { showToast } = useToast();
-  const { currencyRates, isRatesLoading, lastRatesUpdate, fetchRates } = useCurrencyRates();
+  const { currencyRates, isRatesLoading, lastRatesUpdate } = useCurrencyRates();
   const {
     subscriptions,
     setSubscriptions,
@@ -74,11 +74,6 @@ function AppContent() {
     window.addEventListener('show-toast', handleToastEvent);
     return () => window.removeEventListener('show-toast', handleToastEvent);
   }, [showToast]);
-
-  // Загрузка курсов валют при старте
-  // useEffect(() => {
-  //   fetchRates();
-  // }, []);
 
   // ✅ ВСЕ useMemo ХУКИ
   const totalMonthlyCost = useMemo(() => {
@@ -411,7 +406,6 @@ function AppContent() {
         onClose={() => setIsSettingsOpen(false)}
         currencyRates={currencyRates}
         isRatesLoading={isRatesLoading}
-        fetchRates={fetchRates}
         lastRatesUpdate={lastRatesUpdate}
         baseCurrency={baseCurrency}
         setBaseCurrency={setBaseCurrency}

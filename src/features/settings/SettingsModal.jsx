@@ -10,7 +10,6 @@ const SettingsModal = ({
   onClose,
   currencyRates,
   isRatesLoading,
-  fetchRates,
   lastRatesUpdate,
   baseCurrency,
   setBaseCurrency,
@@ -55,21 +54,25 @@ const SettingsModal = ({
   >
     <div className="space-y-4">
       <div>
-        <span className="block text-sm font-medium text-slate-700 mb-2">Курсы валют</span>
-        <button
-          onClick={fetchRates}
-          disabled={isRatesLoading}
-          className="inline-flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white font-medium py-2 px-4 rounded-lg shadow-sm transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-opacity-75 disabled:opacity-50"
-        >
-          {isRatesLoading ? 'Обновление...' : 'Обновить курсы'}
-        </button>
-        <div className="mt-2 text-xs text-slate-500">
-          Текущий курс: 1 USD = {(1 / currencyRates.USD).toFixed(2)} RUB, 1 EUR = {(1 / currencyRates.EUR).toFixed(2)} RUB
-        </div>
-        {lastRatesUpdate && (
-          <div className="mt-1 text-xs text-slate-400">
-            Последнее обновление: {formatDate(lastRatesUpdate)}
-          </div>
+        <span className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">Курсы валют</span>
+        {isRatesLoading ? (
+          <div className="text-sm text-slate-500 dark:text-slate-400">Загрузка курсов...</div>
+        ) : (
+          <>
+            <div className="text-sm text-slate-600 dark:text-slate-300 space-y-1">
+              <div>1 USD = {currencyRates.USD?.toFixed(2)} ₽</div>
+              <div>1 EUR = {currencyRates.EUR?.toFixed(2)} ₽</div>
+              <div>1 RSD = {currencyRates.RSD?.toFixed(4)} ₽</div>
+            </div>
+            {lastRatesUpdate && (
+              <div className="mt-2 text-xs text-slate-400 dark:text-slate-500">
+                Последнее обновление: {formatDate(lastRatesUpdate)}
+              </div>
+            )}
+            <div className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+              Курсы обновляются автоматически каждый час
+            </div>
+          </>
         )}
       </div>
       <div>
