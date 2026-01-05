@@ -118,10 +118,14 @@ function AppContent() {
   const scrollToCategory = (categoryId) => {
     const categoryElement = categoryRefs.current[categoryId];
     if (categoryElement) {
-      categoryElement.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start'
+      const elementPosition = categoryElement.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - 10;
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
       });
+
       // Добавляем небольшую задержку для анимации
       setTimeout(() => {
         // Можно добавить визуальный эффект (например, highlight)

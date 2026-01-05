@@ -8,8 +8,6 @@ const TotalExpenses = ({
   baseCurrency,
   onCategoryClick
 }) => {
-  console.log('TotalExpenses render:', { subscriptions, categories, totalMonthlyCost });
-
   // Группируем расходы по категориям
   const categoryExpenses = useMemo(() => {
     const expenses = {};
@@ -18,10 +16,7 @@ const TotalExpenses = ({
       const categoryId = sub.categoryId?._id || sub.categoryId?.id || sub.categoryId;
       const category = categories.find(cat => cat.id === categoryId || cat._id === categoryId);
 
-      if (!category) {
-        console.log('Category not found for subscription:', sub, 'categoryId:', categoryId);
-        return;
-      }
+      if (!category) return;
 
       let monthlyCost = sub.cost;
       if (sub.cycle === 'annually') {
@@ -52,12 +47,10 @@ const TotalExpenses = ({
 
   // Вычисляем процент для каждой категории
   const categoriesWithPercentage = useMemo(() => {
-    const result = categoryExpenses.map(cat => ({
+    return categoryExpenses.map(cat => ({
       ...cat,
       percentage: totalMonthlyCost > 0 ? (cat.total / totalMonthlyCost) * 100 : 0
     }));
-    console.log('categoriesWithPercentage:', result);
-    return result;
   }, [categoryExpenses, totalMonthlyCost]);
 
   const handleCategoryClick = (categoryId) => {
