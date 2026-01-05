@@ -130,32 +130,13 @@ export const handleHelp = async (ctx) => {
     '/status - Проверить статус подключения\n' +
     '/month - Показать все подписки текущего месяца\n' +
     '/help - Показать эту справку\n\n' +
+    '📅 Автоматические уведомления:\n' +
+    '• Напоминания за N дней до платежа (настраивается для каждой подписки)\n' +
+    '• Месячный отчёт 1 числа каждого месяца со всеми предстоящими платежами\n\n' +
     'Для настройки уведомлений используйте веб-приложение.'
   );
 };
 
-/**
- * Получить дату следующего платежа для подписки
- */
-function getNextPaymentDate(subscription) {
-  if (!subscription.fullPaymentDate) return null;
-
-  const startDate = new Date(subscription.fullPaymentDate);
-  const today = new Date();
-  let nextDate = new Date(startDate);
-
-  if (subscription.cycle === 'monthly') {
-    while (nextDate <= today) {
-      nextDate.setMonth(nextDate.getMonth() + 1);
-    }
-  } else if (subscription.cycle === 'annually') {
-    while (nextDate <= today) {
-      nextDate.setFullYear(nextDate.getFullYear() + 1);
-    }
-  }
-
-  return nextDate;
-}
 
 /**
  * Получить дату платежа в конкретном месяце/году
@@ -173,9 +154,6 @@ function getPaymentDateInMonth(subscription, month, year) {
     // Для ежегодных - проверяем, попадает ли оплата в этот месяц/год
     const startMonth = startDate.getMonth();
     const startYear = startDate.getFullYear();
-
-    // Вычисляем в каком году должен быть платёж для текущего месяца
-    let paymentYear = year;
 
     // Если месяц платежа совпадает с месяцем старта
     if (month === startMonth) {

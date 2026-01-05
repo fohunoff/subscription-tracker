@@ -62,6 +62,14 @@ const userSchema = new mongoose.Schema({
       },
       message: 'Неверный формат времени. Используйте HH:MM'
     }
+  },
+  // Настройки месячных уведомлений
+  monthlyNotificationsEnabled: {
+    type: Boolean,
+    default: true
+  },
+  lastMonthlyNotificationSent: {
+    type: Date
   }
 }, {
   timestamps: true

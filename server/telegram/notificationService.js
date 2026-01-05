@@ -242,3 +242,236 @@ function getDaysWord(days) {
     return 'дней';
   }
 }
+
+/**
+ * Получить дату платежа в конкретном месяце/году
+ */
+function getPaymentDateInMonth(subscription, month, year) {
+  if (!subscription.fullPaymentDate) return null;
+
+  const startDate = new Date(subscription.fullPaymentDate);
+  const paymentDay = startDate.getDate();
+
+  if (subscription.cycle === 'monthly') {
+    // Для ежемесячных - берём тот же день в указанном месяце
+    return new Date(year, month, paymentDay);
+  } else if (subscription.cycle === 'annually') {
+    // Для ежегодных - проверяем, попадает ли оплата в этот месяц/год
+    const startMonth = startDate.getMonth();
+    const startYear = startDate.getFullYear();
+
+    // Если месяц платежа совпадает с месяцем старта
+    if (month === startMonth) {
+      // Проверяем, был ли уже платёж в этом году
+      if (year >= startYear) {
+        return new Date(year, month, paymentDay);
+      }
+    }
+
+    return null; // Платёж не в этом месяце
+  }
+
+  return null;
+}
+
+/**
+ * Проверить и отправить месячные уведомления
+ */
+export async function checkAndSendMonthlyNotifications() {
+  const now = new Date();
+  const currentDay = now.getDate();
+  const currentTime = getCurrentTime();
+
+  console.log(`[Monthly Notification] Checking for monthly notifications on day ${currentDay} at ${currentTime}...`);
+
+  // Отправляем уведомления только 1 числа каждого месяца
+  if (currentDay !== 1) {
+    return;
+  }
+
+  try {
+    // Получаем всех пользователей с включенными месячными уведомлениями
+    const users = await User.find({
+      telegramChatId: { $exists: true, $ne: null },
+      monthlyNotificationsEnabled: true,
+      notificationTime: currentTime
+    });
+
+    console.log(`[Monthly Notification] Found ${users.length} users to notify with monthly report at ${currentTime}`);
+
+    for (const user of users) {
+      try {
+        await sendMonthlyNotificationForUser(user);
+      } catch (error) {
+        console.error(`[Monthly Notification] Error sending monthly notification for user ${user.email}:`, error);
+      }
+    }
+
+    console.log('[Monthly Notification] Finished sending monthly notifications');
+  } catch (error) {
+    console.error('[Monthly Notification] Error in checkAndSendMonthlyNotifications:', error);
+  }
+}
+
+/**
+ * Отправить месячное уведомление для конкретного пользователя
+ */
+async function sendMonthlyNotificationForUser(user) {
+  // Проверяем, не отправляли ли уже уведомление в этом месяце
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+
+  if (user.lastMonthlyNotificationSent) {
+    const lastSent = new Date(user.lastMonthlyNotificationSent);
+    if (lastSent.getMonth() === currentMonth && lastSent.getFullYear() === currentYear) {
+      console.log(`[Monthly Notification] Already sent monthly notification to ${user.email} this month`);
+      return;
+    }
+  }
+
+  // Получаем все подписки пользователя
+  const subscriptions = await Subscription.find({
+    userId: user._id
+  }).populate('categoryId');
+
+  if (subscriptions.length === 0) {
+    console.log(`[Monthly Notification] User ${user.email} has no subscriptions`);
+    return;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Фильтруем подписки, у которых платёж в текущем месяце
+  const monthSubscriptions = [];
+  const paidSubscriptions = [];
+  const upcomingSubscriptions = [];
+
+  for (const sub of subscriptions) {
+    const paymentDateInMonth = getPaymentDateInMonth(sub, currentMonth, currentYear);
+
+    if (paymentDateInMonth) {
+      monthSubscriptions.push({ sub, paymentDate: paymentDateInMonth });
+
+      // Разделяем на оплаченные и предстоящие
+      if (paymentDateInMonth < today) {
+        paidSubscriptions.push({ sub, paymentDate: paymentDateInMonth });
+      } else {
+        upcomingSubscriptions.push({ sub, paymentDate: paymentDateInMonth });
+      }
+    }
+  }
+
+  if (monthSubscriptions.length === 0) {
+    console.log(`[Monthly Notification] User ${user.email} has no subscriptions for current month`);
+    return;
+  }
+
+  // Функция для группировки подписок по категориям
+  const groupByCategory = (items) => {
+    const grouped = {};
+    for (const item of items) {
+      const categoryName = item.sub.categoryId?.name || 'Без категории';
+      if (!grouped[categoryName]) {
+        grouped[categoryName] = [];
+      }
+      grouped[categoryName].push(item);
+    }
+    return grouped;
+  };
+
+  // Функция для форматирования списка подписок
+  const formatSubscriptionList = (items) => {
+    let text = '';
+    let totalCost = 0;
+
+    const grouped = groupByCategory(items);
+
+    for (const [categoryName, categoryItems] of Object.entries(grouped)) {
+      text += `<b>${categoryName}</b>\n`;
+
+      // Сортируем по дате
+      categoryItems.sort((a, b) => a.paymentDate - b.paymentDate);
+
+      for (const { sub, paymentDate } of categoryItems) {
+        const dateStr = paymentDate.toLocaleDateString('ru-RU', {
+          day: 'numeric',
+          month: 'short'
+        });
+        const amount = formatAmount(sub.cost, sub.currency);
+
+        // Конвертируем в месячную стоимость для годовых подписок
+        let monthlyCost = sub.cost;
+        if (sub.cycle === 'annually') {
+          monthlyCost = sub.cost / 12;
+        }
+
+        totalCost += monthlyCost;
+
+        // Иконка уведомлений
+        const notifyIcon = sub.notificationsEnabled ? '🔔' : '🔕';
+
+        // Цикл платежа
+        const cycleIcon = sub.cycle === 'monthly' ? '📆' : '📅';
+
+        text += `  ${notifyIcon} ${sub.name}\n`;
+        text += `     ${amount} ${cycleIcon} ${sub.cycle === 'monthly' ? 'в месяц' : 'в год'}\n`;
+        text += `     💳 Платёж: ${dateStr}\n`;
+
+        if (sub.notificationsEnabled && sub.notifyDaysBefore?.length > 0) {
+          text += `     ⏰ Напомнить за: ${sub.notifyDaysBefore.join(', ')} дн.\n`;
+        }
+
+        text += '\n';
+      }
+    }
+
+    return { text, totalCost };
+  };
+
+  // Формируем сообщение
+  let message = `📅 <b>Подписки на ${now.toLocaleString('ru-RU', { month: 'long' })} ${currentYear}</b>\n\n`;
+
+  let totalMonthCost = 0;
+
+  // Раздел оплаченных подписок
+  if (paidSubscriptions.length > 0) {
+    message += `✅ <b>Уже оплачено (${paidSubscriptions.length})</b>\n\n`;
+    const { text, totalCost } = formatSubscriptionList(paidSubscriptions);
+    message += text;
+    totalMonthCost += totalCost;
+  }
+
+  // Раздел предстоящих платежей
+  if (upcomingSubscriptions.length > 0) {
+    if (paidSubscriptions.length > 0) {
+      message += `\n━━━━━━━━━━━━━━━━━\n\n`;
+    }
+    message += `⏳ <b>Предстоящие платежи (${upcomingSubscriptions.length})</b>\n\n`;
+    const { text, totalCost } = formatSubscriptionList(upcomingSubscriptions);
+    message += text;
+    totalMonthCost += totalCost;
+  }
+
+  message += `\n📊 <b>Итого за месяц:</b> ${monthSubscriptions.length} подписок\n`;
+  message += `💰 <b>Примерная сумма:</b> ~${Math.round(totalMonthCost)} ₽`;
+
+  if (paidSubscriptions.length > 0 && upcomingSubscriptions.length > 0) {
+    message += `\n\n<i>✅ Оплачено: ${paidSubscriptions.length} | ⏳ Ожидается: ${upcomingSubscriptions.length}</i>`;
+  }
+
+  // Отправляем уведомление
+  try {
+    await sendNotification(user.telegramChatId, message);
+
+    // Обновляем дату последнего месячного уведомления
+    user.lastMonthlyNotificationSent = new Date();
+    await user.save();
+
+    console.log(`[Monthly Notification] Sent monthly notification to user ${user.email} for ${monthSubscriptions.length} subscriptions`);
+  } catch (error) {
+    console.error(`[Monthly Notification] Failed to send monthly notification to user ${user.email}:`, error);
+    throw error;
+  }
+}

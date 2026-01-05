@@ -111,4 +111,86 @@ router.delete('/disconnect', authenticateToken, async (req, res) => {
   }
 });
 
+/**
+ * Получение настроек уведомлений
+ * GET /api/telegram/notification-settings
+ */
+router.get('/notification-settings', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.userDoc._id;
+
+    const user = await User.findById(userId).select(
+      'notificationTime monthlyNotificationsEnabled'
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Пользователь не найден'
+      });
+    }
+
+    res.json({
+      success: true,
+      notificationTime: user.notificationTime || '10:00',
+      monthlyNotificationsEnabled: user.monthlyNotificationsEnabled !== false
+    });
+
+  } catch (error) {
+    console.error('Ошибка получения настроек уведомлений:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Ошибка получения настроек уведомлений'
+    });
+  }
+});
+
+/**
+ * Обновление настроек уведомлений
+ * PUT /api/telegram/notification-settings
+ */
+router.put('/notification-settings', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.userDoc._id;
+    const { notificationTime, monthlyNotificationsEnabled } = req.body;
+
+    const updateData = {};
+
+    if (notificationTime !== undefined) {
+      // Валидация формата времени
+      if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(notificationTime)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Неверный формат времени. Используйте HH:MM'
+        });
+      }
+      updateData.notificationTime = notificationTime;
+    }
+
+    if (monthlyNotificationsEnabled !== undefined) {
+      updateData.monthlyNotificationsEnabled = monthlyNotificationsEnabled;
+    }
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      updateData,
+      { new: true }
+    ).select('notificationTime monthlyNotificationsEnabled');
+
+    res.json({
+      success: true,
+      message: 'Настройки уведомлений обновлены',
+      notificationTime: user.notificationTime,
+      monthlyNotificationsEnabled: user.monthlyNotificationsEnabled
+    });
+
+  } catch (error) {
+    console.error('Ошибка обновления настроек уведомлений:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Ошибка обновления настроек уведомлений'
+    });
+  }
+});
+
 export default router;
