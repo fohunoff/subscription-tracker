@@ -8,6 +8,8 @@ const TotalExpenses = ({
   baseCurrency,
   onCategoryClick
 }) => {
+  console.log('TotalExpenses render:', { subscriptions, categories, totalMonthlyCost });
+
   // Группируем расходы по категориям
   const categoryExpenses = useMemo(() => {
     const expenses = {};
