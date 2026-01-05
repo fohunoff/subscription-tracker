@@ -7,7 +7,7 @@ import { Modal, TotalExpenses } from './shared';
 import { SettingsModal } from './features/settings';
 import { LoginPage, UserMenu } from './shared';
 import { useToast } from './features/notifications';
-import { Cog6ToothIcon, PlusIcon, TagIcon } from '@heroicons/react/24/solid';
+import { Cog6ToothIcon, PlusIcon, TagIcon, SunIcon, MoonIcon } from '@heroicons/react/24/solid';
 import { useCurrencyRates, useTheme } from './features/settings/hooks';
 import { useSubscriptions } from './features/subscriptions/hooks';
 import { formatCurrency } from './shared/utils';
@@ -270,14 +270,27 @@ function AppContent() {
       {/* Хедер с настройками и пользователем */}
       <div className="fixed top-4 right-4 z-50 flex items-center space-x-3">
         <button
+          onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+          className="bg-white/80 dark:bg-slate-800/80 hover:bg-white dark:hover:bg-slate-800 shadow-lg rounded-full p-2 border border-slate-200 dark:border-slate-700 transition-colors"
+          aria-label="Переключить тему"
+          type="button"
+        >
+          {theme === 'light' ? (
+            <MoonIcon className="h-7 w-7 text-slate-600 dark:text-slate-300" />
+          ) : (
+            <SunIcon className="h-7 w-7 text-yellow-500" />
+          )}
+        </button>
+
+        <button
           onClick={() => setIsSettingsOpen(true)}
-          className="bg-white/80 hover:bg-white shadow-lg rounded-full p-2 border border-slate-200 transition-colors"
+          className="bg-white/80 dark:bg-slate-800/80 hover:bg-white dark:hover:bg-slate-800 shadow-lg rounded-full p-2 border border-slate-200 dark:border-slate-700 transition-colors"
           aria-label="Открыть настройки"
           type="button"
         >
-          <Cog6ToothIcon className="h-7 w-7 text-slate-600" />
+          <Cog6ToothIcon className="h-7 w-7 text-slate-600 dark:text-slate-300" />
         </button>
-        
+
         <UserMenu />
       </div>
 
@@ -430,8 +443,6 @@ function AppContent() {
         lastRatesUpdate={lastRatesUpdate}
         baseCurrency={baseCurrency}
         setBaseCurrency={setBaseCurrency}
-        theme={theme}
-        setTheme={setTheme}
       />
     </div>
   );
