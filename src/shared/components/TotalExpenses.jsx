@@ -15,19 +15,24 @@ const TotalExpenses = ({
     const expenses = {};
 
     subscriptions.forEach(sub => {
-      const categoryId = sub.categoryId?._id || sub.categoryId;
-      const category = categories.find(cat => cat._id === categoryId);
+      const categoryId = sub.categoryId?._id || sub.categoryId?.id || sub.categoryId;
+      const category = categories.find(cat => cat.id === categoryId || cat._id === categoryId);
 
-      if (!category) return;
+      if (!category) {
+        console.log('Category not found for subscription:', sub, 'categoryId:', categoryId);
+        return;
+      }
 
       let monthlyCost = sub.cost;
       if (sub.cycle === 'annually') {
         monthlyCost = sub.cost / 12;
       }
 
-      if (!expenses[categoryId]) {
-        expenses[categoryId] = {
-          id: categoryId,
+      const catId = category.id || category._id;
+
+      if (!expenses[catId]) {
+        expenses[catId] = {
+          id: catId,
           name: category.name,
           color: category.color,
           total: 0,
@@ -35,8 +40,8 @@ const TotalExpenses = ({
         };
       }
 
-      expenses[categoryId].total += monthlyCost;
-      expenses[categoryId].count += 1;
+      expenses[catId].total += monthlyCost;
+      expenses[catId].count += 1;
     });
 
     // Сортируем по убыванию суммы
