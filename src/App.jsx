@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SubscriptionForm, SubscriptionList } from './features/subscriptions';
 import { ExportData } from './features/telegram';
-import { Modal } from './shared';
+import { Modal, TotalExpenses } from './shared';
 import { SettingsModal } from './features/settings';
 import { LoginPage, UserMenu } from './shared';
 import { useToast } from './features/notifications';
@@ -51,6 +51,9 @@ function AppContent() {
   const [baseCurrency, setBaseCurrency] = React.useState(localStorage.getItem('baseCurrency') || 'RUB');
   const [theme, setTheme] = useTheme('light');
   // const [isSubsOpen, setIsSubsOpen] = React.useState(true);
+
+  // Refs для скролла к категориям
+  const categoryRefs = useRef({});
 
   // ✅ ВСЕ useEffect ХУКИ
   // Загружаем подписки после авторизации
@@ -109,6 +112,25 @@ function AppContent() {
     setModalType('category');
     setEditingCategory(null);
     setIsModalOpen(true);
+  };
+
+  // Функция для скролла к категории
+  const scrollToCategory = (categoryId) => {
+    const categoryElement = categoryRefs.current[categoryId];
+    if (categoryElement) {
+      categoryElement.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+      // Добавляем небольшую задержку для анимации
+      setTimeout(() => {
+        // Можно добавить визуальный эффект (например, highlight)
+        categoryElement.classList.add('highlight-pulse');
+        setTimeout(() => {
+          categoryElement.classList.remove('highlight-pulse');
+        }, 1500);
+      }, 300);
+    }
   };
 
   const handleAddSubscription = async (newSub) => {
@@ -299,19 +321,13 @@ function AppContent() {
 
           {/* Общая статистика */}
           {subscriptions.length > 0 && (
-            <section className="bg-white dark:bg-slate-800 rounded-xl p-6 md:p-8 mb-6">
-              <div className="text-center">
-                <h2 className="text-xl font-semibold text-slate-700 dark:text-slate-200 mb-2">
-                  Общие расходы
-                </h2>
-                <p className="text-4xl font-bold text-brand-primary mb-2">
-                  {formatCurrency(totalMonthlyCost, baseCurrency)}
-                </p>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Итого в месяц • {subscriptions.length} подписок
-                </p>
-              </div>
-            </section>
+            <TotalExpenses
+              subscriptions={subscriptions}
+              categories={categories}
+              totalMonthlyCost={totalMonthlyCost}
+              baseCurrency={baseCurrency}
+              onCategoryClick={scrollToCategory}
+            />
           )}
 
             {isLoadingCategories ? (
@@ -324,6 +340,7 @@ function AppContent() {
                 {categoriesWithSubscriptions.map((category) => (
                   <CategorySection
                     key={category.id}
+                    ref={(el) => (categoryRefs.current[category.id] = el)}
                     category={category}
                     subscriptions={category.subscriptions}
                     currencyRates={currencyRates}

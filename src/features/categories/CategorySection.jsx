@@ -1,9 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, forwardRef } from 'react';
 import { PlusIcon, PencilSquareIcon, TrashIcon, ChevronDownIcon, Bars3BottomLeftIcon, CalendarDaysIcon } from '@heroicons/react/24/outline';
 import { SubscriptionList } from '../subscriptions';
 import { formatCurrency } from '../../shared/utils';
 
-function CategorySection({
+const CategorySection = forwardRef(function CategorySection({
   category,
   subscriptions,
   currencyRates,
@@ -15,7 +15,7 @@ function CategorySection({
   onDeleteCategory,
   onUpdateCategory,
   isLoadingData
-}) {
+}, ref) {
   const [isExpanded, setIsExpanded] = useState(true);
 
   const categorySubscriptions = subscriptions.filter(sub => sub.categoryId === category.id);
@@ -71,7 +71,7 @@ function CategorySection({
   };
 
   return (
-    <section className="bg-white dark:bg-slate-800 rounded-xl p-6 md:p-8 relative">
+    <section ref={ref} className="bg-white dark:bg-slate-800 rounded-xl p-6 md:p-8 relative transition-all duration-300">
       {/* Иконки управления - абсолютное позиционирование */}
       <div className="absolute top-4 right-8 flex items-center gap-2 z-10" onClick={(e) => e.stopPropagation()}>
         <button
@@ -187,6 +187,6 @@ function CategorySection({
       </div>
     </section>
   );
-}
+});
 
 export default CategorySection;
