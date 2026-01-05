@@ -31,6 +31,7 @@ router.get('/', authenticateToken, async (req, res) => {
       isDefault: cat.isDefault,
       order: cat.order,
       sortBy: cat.sortBy || 'alphabetical',
+      isExpanded: cat.isExpanded !== undefined ? cat.isExpanded : true,
       createdAt: cat.createdAt,
       updatedAt: cat.updatedAt
     }));
@@ -83,6 +84,7 @@ router.post('/', authenticateToken, async (req, res) => {
         isDefault: newCategory.isDefault,
         order: newCategory.order,
         sortBy: newCategory.sortBy || 'alphabetical',
+        isExpanded: newCategory.isExpanded !== undefined ? newCategory.isExpanded : true,
         createdAt: newCategory.createdAt,
         updatedAt: newCategory.updatedAt
       },
@@ -98,7 +100,7 @@ router.post('/', authenticateToken, async (req, res) => {
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, hasReminders, color, sortBy } = req.body;
+    const { name, hasReminders, color, sortBy, isExpanded } = req.body;
 
     const category = await Category.findOne({ _id: id, userId: req.userDoc._id });
     if (!category) {
@@ -138,6 +140,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
       }
       updateData.sortBy = sortBy;
     }
+    if (isExpanded !== undefined) updateData.isExpanded = isExpanded;
 
     const updatedCategory = await Category.findByIdAndUpdate(
       id,
@@ -155,6 +158,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
         isDefault: updatedCategory.isDefault,
         order: updatedCategory.order,
         sortBy: updatedCategory.sortBy || 'alphabetical',
+        isExpanded: updatedCategory.isExpanded !== undefined ? updatedCategory.isExpanded : true,
         createdAt: updatedCategory.createdAt,
         updatedAt: updatedCategory.updatedAt
       },

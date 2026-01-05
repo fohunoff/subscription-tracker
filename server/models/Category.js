@@ -32,6 +32,10 @@ const categorySchema = new mongoose.Schema({
     type: String,
     enum: ['alphabetical', 'paymentDate'],
     default: 'alphabetical' // Сортировка подписок в категории
+  },
+  isExpanded: {
+    type: Boolean,
+    default: true // По умолчанию категория развернута
   }
 }, {
   timestamps: true

@@ -119,7 +119,7 @@ function AppContent() {
     const categoryElement = categoryRefs.current[categoryId];
     if (categoryElement) {
       const elementPosition = categoryElement.getBoundingClientRect().top;
-      const offsetPosition = elementPosition + window.pageYOffset - 10;
+      const offsetPosition = elementPosition + window.pageYOffset - 16;
 
       window.scrollTo({
         top: offsetPosition,

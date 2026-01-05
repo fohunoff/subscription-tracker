@@ -1,4 +1,4 @@
-import React, { useState, useMemo, forwardRef } from 'react';
+import React, { useState, useEffect, useMemo, forwardRef } from 'react';
 import { PlusIcon, PencilSquareIcon, TrashIcon, ChevronDownIcon, Bars3BottomLeftIcon, CalendarDaysIcon } from '@heroicons/react/24/outline';
 import { SubscriptionList } from '../subscriptions';
 import { formatCurrency } from '../../shared/utils';
@@ -16,7 +16,12 @@ const CategorySection = forwardRef(function CategorySection({
   onUpdateCategory,
   isLoadingData
 }, ref) {
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(category.isExpanded !== undefined ? category.isExpanded : true);
+
+  // Синхронизация локального состояния с данными из БД
+  useEffect(() => {
+    setIsExpanded(category.isExpanded !== undefined ? category.isExpanded : true);
+  }, [category.isExpanded]);
 
   const categorySubscriptions = subscriptions.filter(sub => sub.categoryId === category.id);
 
@@ -70,6 +75,12 @@ const CategorySection = forwardRef(function CategorySection({
     await onUpdateCategory(category.id, { sortBy: newSortBy });
   };
 
+  const handleToggleExpanded = async () => {
+    const newIsExpanded = !isExpanded;
+    setIsExpanded(newIsExpanded);
+    await onUpdateCategory(category.id, { isExpanded: newIsExpanded });
+  };
+
   return (
     <section ref={ref} className="bg-white dark:bg-slate-800 rounded-xl p-6 md:p-8 relative transition-all duration-300">
       {/* Иконки управления - абсолютное позиционирование */}
@@ -112,7 +123,7 @@ const CategorySection = forwardRef(function CategorySection({
       {/* Заголовок и статистика */}
       <div
         className="select-none cursor-pointer group mb-6"
-        onClick={() => setIsExpanded(v => !v)}
+        onClick={handleToggleExpanded}
       >
         <div className="flex items-center gap-3 mb-4 pr-0 sm:pr-32">
           <div
