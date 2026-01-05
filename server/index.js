@@ -13,8 +13,10 @@ import categoriesRoutes from './routes/categories.js';
 import statsRoutes from './routes/stats.js';
 import healthRoutes from './routes/health.js';
 import telegramRoutes from './routes/telegram.js';
+import currencyRatesRoutes from './routes/currencyRates.js';
 import { initBot, startBot, stopBot } from './telegram/bot.js';
 import { startScheduler, stopScheduler } from './telegram/scheduler.js';
+import { initializeCurrencyRates } from './services/currencyService.js';
 
 // Настройка __dirname для ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -69,6 +71,7 @@ app.use('/api/categories', categoriesRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/health', healthRoutes);
 app.use('/api/telegram', telegramRoutes);
+app.use('/api/currency-rates', currencyRatesRoutes);
 
 // =====================
 // ОБРАБОТКА ОШИБОК
@@ -125,6 +128,9 @@ const startServer = async () => {
       if (!process.env.TELEGRAM_BOT_USERNAME) {
         console.warn('⚠️  TELEGRAM_BOT_USERNAME не установлен');
       }
+
+      // Инициализируем курсы валют
+      initializeCurrencyRates();
 
       // Запускаем Telegram бота ПОСЛЕ запуска HTTP сервера
       const bot = initBot(process.env.TELEGRAM_BOT_TOKEN);
