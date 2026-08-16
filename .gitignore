@@ -29,9 +29,3 @@ dist-ssr
 .env.development.local
 .env.test.local
 .env.production.local
-
-<<<<<<< HEAD
-server/ecosystem.**.*
-=======
-server/ecosystem.config.cjs
->>>>>>> 65c906b (server)
