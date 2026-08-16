@@ -45,7 +45,9 @@ VITE_API_URL=/api
 > Не «улучшайте» это.
 
 Локально при разработке фронт и бэкенд на разных портах, поэтому там абсолютный адрес
-(`http://localhost:3001/api`) — см. `.env.example`.
+(`http://localhost:3001/api`) — см. `.env.example`. Порт локального бэкенда (3001)
+намеренно отличается от продового (5000): и то и другое задаётся `PORT` в своём
+`server/.env`.
 
 ### Fail-fast по секретам
 
@@ -97,6 +99,7 @@ cd /home/fohunoff/repos/subscription-tracker
 ```bash
 cd /home/fohunoff/repos/subscription-tracker
 git pull origin main
+npm ci                            # если менялся package-lock.json; см. ниже про ci и install
 npm run build
 sudo cp -r dist/* /var/www/fohunoff/data/www/tracker.fohunoff.ru/
 sudo chown -R fohunoff:fohunoff /var/www/fohunoff/data/www/tracker.fohunoff.ru
@@ -113,25 +116,37 @@ sudo chown -R fohunoff:fohunoff /var/www/fohunoff/data/www/tracker.fohunoff.ru
 ```bash
 cd /home/fohunoff/repos/subscription-tracker/server
 git pull origin main
-npm install --production          # не пропускать, см. предупреждение ниже
+npm ci --omit=dev                 # не пропускать, см. предупреждение ниже
 pm2 restart subscription-tracker-api --update-env
 pm2 logs subscription-tracker-api
 ```
 
-> ⚠️ **`npm install --production` пропускать нельзя, если в коммите менялись
-> зависимости.** Отказ будет не мягким: Node не найдёт пакет при импорте, процесс
-> упадёт с `ERR_MODULE_NOT_FOUND`, PM2 будет перезапускать его по кругу, а Nginx —
-> отдавать **502 на все запросы к `/api/`**. Фронт при этом продолжает открываться
-> (статика отдаётся отдельно), поэтому по внешнему виду сайта поломку легко не заметить.
+> ⚠️ **Установку зависимостей пропускать нельзя, если в коммите менялся lock-файл.**
+> Отказ будет не мягким: Node не найдёт пакет при импорте, процесс упадёт с
+> `ERR_MODULE_NOT_FOUND`, PM2 будет перезапускать его по кругу, а Nginx — отдавать
+> **502 на все запросы к `/api/`**. Фронт при этом продолжает открываться (статика
+> отдаётся отдельно), поэтому по внешнему виду сайта поломку легко не заметить.
 >
 > Так уже случилось при выкатке helmet и express-rate-limit: `git pull` + `pm2 restart`
 > без установки зависимостей положили API примерно на минуту.
 >
-> Дешевле всего выполнять `npm install --production` при каждом деплое бэкенда —
-> если зависимости не менялись, команда отработает вхолостую за секунду.
->
 > Быстрый откат, если установка почему-то не проходит:
 > `git revert --no-edit <коммит> && pm2 restart subscription-tracker-api --update-env`
+
+### `npm ci` на сервере, `npm install` локально
+
+| Где | Команда | Почему |
+|---|---|---|
+| Сервер | `npm ci --omit=dev` | Ставит строго по `package-lock.json` и **не меняет его**. Дерево остаётся чистым, `git pull` не упирается в изменённый lock |
+| Локально | `npm install` | Обновляет `package-lock.json` при добавлении зависимостей — этот lock и коммитится |
+
+`npm install --production` устарел, актуальный флаг — `--omit=dev`. Ровно из-за
+`npm install` на сервере lock-файл однажды оказался изменённым и заблокировал
+`git pull` с ошибкой «cannot pull with rebase: You have unstaged changes».
+Лечится так: `git checkout -- server/package-lock.json`.
+
+`deploy.sh` использует `npm ci` и запускает установку только при изменении lock-файла,
+поэтому проблема не повторяется.
 
 Первый запуск:
 
@@ -151,6 +166,13 @@ pm2 startup
 `database.status: connected`.
 
 ## Nginx
+
+> ℹ️ Ниже — **рекомендуемый** вид конфига, а не дословная копия текущего. В реальном
+> `/etc/nginx/sites-available/` строки `listen 443 ssl` и пути к сертификатам добавлены
+> certbot'ом, а правил кэширования (`index.html` без кэша, `/assets/` надолго) может
+> не быть. Кэширование стоит применить: без него браузеры держат старый `index.html`
+> и пользователи после деплоя видят прежнюю версию, пока не сделают жёсткое обновление.
+> Проверьте заодно `server_name` — он должен быть `tracker.fohunoff.com`.
 
 ```nginx
 server {
@@ -234,17 +256,85 @@ curl -s -o /dev/null -w "%{http_code}\n" -H "Origin: https://evil.example.com" \
 
 ## Резервное копирование MongoDB
 
+Регулярные бэкапы делает `deploy.sh` перед каждым деплоем. Отдельный ночной бэкап
+настраивается так:
+
+> 🔴 **Пароль от базы не должен попадать в файл внутри репозитория.** Скрипт ниже
+> читает `MONGODB_URI` из `server/.env` (он в `.gitignore`) и сам лежит **вне**
+> репозитория — в домашнем каталоге. Файл с подставленным паролем, созданный внутри
+> `~/repos/subscription-tracker`, уедет в публичный GitHub при первом же `git add -A`.
+
+Создайте `/home/fohunoff/backup-mongo.sh` (вне репозитория):
+
 ```bash
-#!/bin/bash
-DATE=$(date +%Y%m%d_%H%M%S)
-BACKUP_DIR="/backups/mongodb"
-mkdir -p $BACKUP_DIR
-mongodump --uri "mongodb://fohunoff:<пароль>@127.0.0.1:27017/subscription-tracker?authSource=admin" \
-  --out $BACKUP_DIR/backup_$DATE
-find $BACKUP_DIR -maxdepth 1 -type d -mtime +7 -exec rm -rf {} \;
+#!/usr/bin/env bash
+set -euo pipefail
+
+ENV_FILE="/home/fohunoff/repos/subscription-tracker/server/.env"
+BACKUP_DIR="/home/fohunoff/backups/mongodb"
+KEEP_DAYS=7
+
+# URI берём из server/.env, а не хардкодим — пароль остаётся в одном месте
+MONGODB_URI="$(grep -E '^\s*MONGODB_URI\s*=' "$ENV_FILE" | tail -1 | cut -d= -f2- \
+  | sed 's/^[[:space:]]*//; s/[[:space:]]*$//; s/^"//; s/"$//')"
+
+DATE="$(date +%Y%m%d_%H%M%S)"
+mkdir -p "$BACKUP_DIR"
+mongodump --uri "$MONGODB_URI" --out "$BACKUP_DIR/backup_$DATE"
+
+find "$BACKUP_DIR" -mindepth 1 -maxdepth 1 -type d -mtime +$KEEP_DAYS -exec rm -rf {} +
 ```
 
 ```bash
+chmod +x /home/fohunoff/backup-mongo.sh
 crontab -e
-# 0 2 * * * /home/fohunoff/repos/subscription-tracker/backup.sh
+# 0 2 * * * /home/fohunoff/backup-mongo.sh >> /home/fohunoff/backups/backup.log 2>&1
 ```
+
+### Восстановление из бэкапа
+
+Бэкапы лежат в `~/backups/subscription-tracker/mongo_*` (сделанные деплоем) и
+`~/backups/mongodb/backup_*` (ночные). Восстановление:
+
+```bash
+# посмотреть, что есть
+ls -1t ~/backups/subscription-tracker/mongo_* ~/backups/mongodb/backup_* 2>/dev/null | head
+
+# остановить бэкенд, чтобы он не писал во время восстановления
+pm2 stop subscription-tracker-api
+
+# --drop удаляет текущие коллекции перед восстановлением: данные, появившиеся
+# после снятия бэкапа, будут потеряны
+MONGODB_URI="$(grep -E '^\s*MONGODB_URI\s*=' server/.env | tail -1 | cut -d= -f2-)"
+mongorestore --uri "$MONGODB_URI" --drop \
+  ~/backups/subscription-tracker/mongo_20260816_120000/subscription-tracker
+
+pm2 start subscription-tracker-api
+curl http://127.0.0.1:5000/api/health
+```
+
+Путь заканчивается именем базы (`subscription-tracker`) — `mongorestore` ждёт каталог
+с BSON-файлами конкретной базы, а не корень дампа.
+
+## Порядок при миграциях
+
+Миграции лежат в `server/scripts/`. Правильная последовательность — и её же соблюдает
+`deploy.sh --migrate`:
+
+1. **бэкап базы** (без него откат данных невозможен);
+2. `git pull` и установка зависимостей;
+3. **миграция** — `node scripts/<имя>.js` из каталога `server`;
+4. рестарт бэкенда;
+5. сборка и публикация фронта;
+6. health-check.
+
+Миграции пишутся идемпотентными: повторный запуск не должен ничего менять. Откат кода
+миграцию не отменяет — если после отката данные несовместимы со старым кодом,
+восстанавливайте базу из бэкапа (см. выше).
+
+## server/.env не хранится в git
+
+Файл существует только на сервере. При переклонировании репозитория его нужно создать
+заново из `server/.env.example` и заполнить реальными значениями, иначе сервер не
+стартует (fail-fast по `JWT_SECRET` и `GOOGLE_CLIENT_ID`). Держите копию значений в
+менеджере паролей — восстановить их из репозитория невозможно by design.

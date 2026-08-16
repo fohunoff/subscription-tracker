@@ -23,6 +23,10 @@ dist-ssr
 *.sln
 *.sw?
 
+# Скрипты бэкапа держим вне репозитория: в них попадает пароль от базы.
+# deploy.sh под правило не подпадает — секретов он не содержит, читает их из server/.env
+backup*.sh
+
 # Environment variables
 .env
 .env.local
