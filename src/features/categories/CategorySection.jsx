@@ -12,6 +12,7 @@ const CategorySection = forwardRef(function CategorySection({
   onDeleteSubscription,
   onEditSubscription,
   onArchiveSubscription,
+  onOpenDetails,
   onAddSubscription,
   onEditCategory,
   onDeleteCategory,
@@ -186,6 +187,7 @@ const CategorySection = forwardRef(function CategorySection({
               onDeleteSubscription={onDeleteSubscription}
               onEditSubscription={onEditSubscription}
               onArchiveSubscription={onArchiveSubscription}
+              onOpenDetails={onOpenDetails}
             />
             {categorySubscriptions.length > 0 && (
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-6 text-right">

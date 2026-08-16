@@ -17,7 +17,7 @@ const CURRENCY_SYMBOLS = {
 // Wrapper используется как JSX-тег ниже, но без eslint-plugin-react линтер
 // этого не видит — отсюда отключение правила.
 // eslint-disable-next-line no-unused-vars
-function SubscriptionItem({ subscription, onDeleteSubscription, onEditSubscription, onArchiveSubscription, as: Wrapper = 'li' }) {
+function SubscriptionItem({ subscription, onDeleteSubscription, onEditSubscription, onArchiveSubscription, onOpenDetails, as: Wrapper = 'li' }) {
   const cycleMeta = getCycleMeta(subscription.cycle);
   const cycleText = cycleMeta.shortLabel;
   // Для ежемесячных достаточно дня месяца, остальным нужна дата: по ней видно,
@@ -26,7 +26,19 @@ function SubscriptionItem({ subscription, onDeleteSubscription, onEditSubscripti
 
   return (
     <Wrapper className="bg-slate-50 hover:bg-slate-100 p-4 rounded-lg shadow-sm border border-slate-200 transition-all duration-150 ease-in-out flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0 sm:space-x-4">
-      <div className="flex-1 min-w-0">
+      <div
+        className={`flex-1 min-w-0 ${onOpenDetails ? 'cursor-pointer' : ''}`}
+        onClick={onOpenDetails ? () => onOpenDetails(subscription) : undefined}
+        onKeyDown={onOpenDetails ? (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onOpenDetails(subscription);
+          }
+        } : undefined}
+        role={onOpenDetails ? 'button' : undefined}
+        tabIndex={onOpenDetails ? 0 : undefined}
+        title={onOpenDetails ? 'Открыть детали подписки' : undefined}
+      >
         <h3 className="text-lg font-semibold text-slate-800 truncate" title={subscription.name}>
           {subscription.name}
         </h3>

@@ -16,6 +16,7 @@ function FlatSubscriptionList({
   onDeleteSubscription,
   onEditSubscription,
   onArchiveSubscription,
+  onOpenDetails,
   emptyMessage
 }) {
   if (subscriptions.length === 0) {
@@ -84,6 +85,7 @@ function FlatSubscriptionList({
                   onDeleteSubscription={onDeleteSubscription}
                   onEditSubscription={onEditSubscription}
                   onArchiveSubscription={onArchiveSubscription}
+                  onOpenDetails={onOpenDetails}
                 />
               </li>
             ))}

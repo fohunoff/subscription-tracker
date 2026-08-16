@@ -6,7 +6,8 @@ import {
   SubscriptionList,
   ArchivedSubscriptions,
   FlatSubscriptionList,
-  SubscriptionsToolbar
+  SubscriptionsToolbar,
+  SubscriptionDetails
 } from './features/subscriptions';
 import { ExportData } from './features/telegram';
 import { Modal, TotalExpenses } from './shared';
@@ -60,6 +61,7 @@ function AppContent() {
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
   const [baseCurrency, setBaseCurrency] = React.useState(localStorage.getItem('baseCurrency') || 'RUB');
   const [searchQuery, setSearchQuery] = React.useState('');
+  const [detailsSubscription, setDetailsSubscription] = React.useState(null);
   // Выбранный вид переживает перезагрузку страницы
   const [viewMode, setViewMode] = React.useState(() => localStorage.getItem('viewMode') || 'categories');
   const [theme, setTheme] = useTheme('light');
@@ -214,6 +216,29 @@ function AppContent() {
     if (!confirmed) return;
 
     await deleteArchivedSubscription(subscription.id);
+  };
+
+  const handleOpenDetails = (subscription) => {
+    setDetailsSubscription(subscription);
+  };
+
+  const closeDetails = () => setDetailsSubscription(null);
+
+  // Из деталей действия ведут в те же обработчики, что и с карточки,
+  // поэтому окно деталей закрывается, чтобы не перекрывать форму и подтверждения.
+  const handleEditFromDetails = (subscription) => {
+    closeDetails();
+    handleOpenEditModal(subscription);
+  };
+
+  const handleArchiveFromDetails = async (subscription) => {
+    closeDetails();
+    await handleArchiveSubscription(subscription);
+  };
+
+  const handleDeleteFromDetails = async (subscription) => {
+    closeDetails();
+    await handleDeleteSubscription(subscription.id);
   };
 
   const handleOpenEditModal = (subscription) => {
@@ -413,6 +438,7 @@ function AppContent() {
                 onDeleteSubscription={handleDeleteSubscription}
                 onEditSubscription={handleOpenEditModal}
                 onArchiveSubscription={handleArchiveSubscription}
+                onOpenDetails={handleOpenDetails}
                 emptyMessage={hasQuery ? 'Ничего не найдено.' : 'Список подписок пуст.'}
               />
             ) : (
@@ -428,6 +454,7 @@ function AppContent() {
                     onDeleteSubscription={handleDeleteSubscription}
                     onEditSubscription={handleOpenEditModal}
                     onArchiveSubscription={handleArchiveSubscription}
+                    onOpenDetails={handleOpenDetails}
                     onAddSubscription={() => openAddSubscriptionModal(category)}
                     onEditCategory={handleOpenEditCategoryModal}
                     onUpdateCategory={handleUpdateCategory}
@@ -514,6 +541,26 @@ function AppContent() {
             isEditMode={!!editingSubscription}
             categories={categories}
             selectedCategory={selectedCategory}
+          />
+        )}
+      </Modal>
+
+      {/* Детали подписки */}
+      <Modal
+        isOpen={!!detailsSubscription}
+        onClose={closeDetails}
+        title={detailsSubscription?.name || 'Подписка'}
+      >
+        {detailsSubscription && (
+          <SubscriptionDetails
+            subscription={detailsSubscription}
+            categories={categories}
+            currencyRates={currencyRates}
+            baseCurrency={baseCurrency}
+            onLoadHistory={api.getSubscriptionHistory}
+            onEdit={handleEditFromDetails}
+            onArchive={handleArchiveFromDetails}
+            onDelete={handleDeleteFromDetails}
           />
         )}
       </Modal>
