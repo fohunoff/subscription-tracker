@@ -43,7 +43,7 @@ src/
 ### Backend Architecture
 
 **Database Models:**
-- User: Google OAuth user data (googleId, email, name, picture)
+- User: Google OAuth user data (googleId, email, name, picture) + baseCurrency (валюта итогов)
 - Category: User-defined expense categories (name, color, hasReminders, order, isDefault)
 - Subscription: Recurring expenses (name, cost, currency, cycle, paymentDay, fullPaymentDate)
   - References: userId, categoryId
@@ -59,7 +59,7 @@ src/
 
 **API Structure:**
 ```
-/api/auth         - Google OAuth login, logout, user info
+/api/auth         - Google OAuth login, logout, user info, PATCH /settings (baseCurrency)
 /api/categories   - CRUD + reorder operations
 /api/subscriptions - CRUD + import + archive/restore/history
 /api/stats        - Aggregated statistics
@@ -252,10 +252,36 @@ When adding API-dependent features:
 
 ### Валюты и заглушки загрузки
 
-Список валют — `src/shared/utils/currency.js` (коды должны совпадать с enum в
-`server/models/Subscription.js`). Настройки различают две валюты: `baseCurrency` —
-в чём показывать итоги, `defaultCurrency` — что подставить в форму новой подписки;
-обе живут в localStorage.
+Список валют — `src/shared/utils/currency.js` на клиенте и `CURRENCY_CODES`
+в `server/utils/currency.js` на сервере (оттуда его берут enum'ы моделей и
+`validateSubscriptionData`); наборы кодов должны совпадать. Настройки различают
+две валюты: `baseCurrency` — в чём показывать итоги, `defaultCurrency` — что
+подставить в форму новой подписки.
+
+`baseCurrency` хранится в `User.baseCurrency` и правится через
+`PATCH /api/auth/settings`; всей синхронизацией занимается
+`useBaseCurrency` (features/settings/hooks). localStorage остался кэшем для
+первого рендера — до ответа `/auth/me`. Поле намеренно без `default` в схеме:
+пустое значение означает «пользователь ещё не переносил выбор», и тогда хук
+отправляет на сервер то, что лежит в браузере, вместо того чтобы получить
+навязанные рубли. Потребители (`/api/stats`, Telegram) читают
+`user.baseCurrency || валюта курсов`.
+
+`defaultCurrency` остаётся чисто клиентской настройкой в localStorage —
+серверу он ни для чего не нужен.
+
+**Любая сумма по нескольким подпискам идёт через `getMonthlyCostInBase`**
+(`src/shared/utils/currency.js`): в списке смешаны RUB, USD, EUR и RSD, а курсы
+заданы относительно рубля. Голый `getMonthlyCost` — только для одной подписки и
+только рядом с её собственной валютой. Именно на этом горел блок топ-категорий:
+складывал сырые стоимости, а подписывал результат базовой валютой.
+
+На сервере то же правило и та же формула — `server/utils/currency.js`
+(`getMonthlyCostInBase`, `getAnnualCostInBase`); курсы берутся из БД через
+`getLatestCurrencyRates()`. Считают в `user.baseCurrency`, а пока пользователь
+её не сохранил — в валюте курсов (рубли), и всегда сообщают, какая вышла:
+`/api/stats` отдаёт `baseCurrency` рядом с суммами, бот берёт символ из
+`server/telegram/format.js`.
 
 Скелетоны вместо спиннеров — `src/shared/components/Skeleton.jsx`
 (`SubscriptionListSkeleton`, `CategorySkeleton`, `TotalExpensesSkeleton`).

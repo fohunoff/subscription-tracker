@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { CURRENCY_CODES } from '../utils/currency.js';
 
 const userSchema = new mongoose.Schema({
   googleId: {
@@ -51,6 +52,16 @@ const userSchema = new mongoose.Schema({
   },
   telegramConnectedAt: {
     type: Date
+  },
+  // Валюта, в которой пользователь смотрит итоги. Нужна не только интерфейсу:
+  // без неё сервер не знает, в чём считать /api/stats и сводки Telegram.
+  //
+  // Намеренно без default: у существующих пользователей выбор лежит только
+  // в localStorage, и пустое поле — сигнал клиенту прислать своё значение
+  // вместо того, чтобы получить в ответ навязанные рубли.
+  baseCurrency: {
+    type: String,
+    enum: CURRENCY_CODES
   },
   // Настройки уведомлений
   notificationTime: {

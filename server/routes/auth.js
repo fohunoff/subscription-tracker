@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { OAuth2Client } from 'google-auth-library';
 import { generateToken } from '../utils/index.js';
 import User from '../models/User.js';
+import { CURRENCY_CODES, isValidCurrency } from '../utils/currency.js';
 import { env } from '../config.js';
 
 // Получение текущего пользователя
@@ -53,7 +54,8 @@ router.post('/google', async (req, res) => {
         email: user.email,
         avatar: user.avatar,
         provider: user.provider,
-        createdAt: user.createdAt
+        createdAt: user.createdAt,
+        baseCurrency: user.baseCurrency
       }
     });
   } catch (error) {
@@ -76,7 +78,9 @@ router.get('/me', authenticateToken, (req, res) => {
       provider: user.provider,
       createdAt: user.createdAt,
       lastLogin: user.lastLogin,
-      notificationTime: user.notificationTime || '10:00'
+      notificationTime: user.notificationTime || '10:00',
+      // Может быть пустым — тогда клиент пришлёт значение из localStorage
+      baseCurrency: user.baseCurrency
     }
   });
 });
@@ -84,6 +88,39 @@ router.get('/me', authenticateToken, (req, res) => {
 // Выход
 router.post('/logout', authenticateToken, (req, res) => {
   res.json({ success: true, message: 'Выход выполнен успешно' });
+});
+
+// Настройки отображения. Пока это только базовая валюта, но роут общий:
+// сюда же поедут остальные настройки, которые сегодня живут в localStorage.
+router.patch('/settings', authenticateToken, async (req, res) => {
+  try {
+    const { baseCurrency } = req.body;
+    const user = req.userDoc;
+
+    if (baseCurrency !== undefined) {
+      if (!isValidCurrency(baseCurrency)) {
+        return res.status(400).json({
+          success: false,
+          message: `Недопустимая валюта. Допустимые: ${CURRENCY_CODES.join(', ')}`
+        });
+      }
+      user.baseCurrency = baseCurrency;
+    }
+
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Настройки обновлены',
+      baseCurrency: user.baseCurrency
+    });
+  } catch (error) {
+    console.error('Ошибка обновления настроек:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Ошибка обновления настроек'
+    });
+  }
 });
 
 // Обновление настроек уведомлений

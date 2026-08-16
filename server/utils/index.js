@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { env } from '../config.js';
 import { CYCLE_VALUES, isValidCycle } from './cycle.js';
+import { isValidCurrency } from './currency.js';
 
 export const generateToken = (user) => {
   return jwt.sign(
@@ -23,7 +24,7 @@ export const validateSubscriptionData = (data, requiresReminders = true) => {
   if (!cost || isNaN(parseFloat(cost)) || parseFloat(cost) <= 0) {
     throw new Error('Стоимость должна быть положительным числом');
   }
-  if (!currency || !['RUB', 'USD', 'EUR', 'RSD'].includes(currency)) {
+  if (!currency || !isValidCurrency(currency)) {
     throw new Error('Недопустимая валюта');
   }
   if (!cycle || !isValidCycle(cycle)) {

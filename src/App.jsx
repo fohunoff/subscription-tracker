@@ -15,10 +15,9 @@ import { SettingsModal } from './features/settings';
 import { LoginPage, UserMenu } from './shared';
 import { useToast } from './features/notifications';
 import { Cog6ToothIcon, PlusIcon, TagIcon, SunIcon, MoonIcon } from '@heroicons/react/24/solid';
-import { useCurrencyRates, useTheme } from './features/settings/hooks';
+import { useBaseCurrency, useCurrencyRates, useTheme } from './features/settings/hooks';
 import { useSubscriptions, useSubscriptionFilters } from './features/subscriptions/hooks';
-import { getMonthlyCost } from './shared/utils/cycle';
-import { DEFAULT_CURRENCY } from './shared/utils/currency';
+import { DEFAULT_CURRENCY, getMonthlyCostInBase } from './shared/utils/currency';
 import { useLocalStorage } from './shared/hooks';
 import { useCategories } from './features/categories/hooks/useCategories';
 import CategoryForm from './features/categories/CategoryForm';
@@ -28,7 +27,7 @@ import CategorySection from './features/categories/CategorySection';
 import { GOOGLE_CLIENT_ID } from './shared/config';
 
 function AppContent() {
-  const { isAuthenticated, loading, api } = useAuth();
+  const { isAuthenticated, loading, api, user, updateUser } = useAuth();
   const { showToast } = useToast();
   const { currencyRates, isRatesLoading, lastRatesUpdate } = useCurrencyRates();
   const {
@@ -61,7 +60,9 @@ function AppContent() {
   const [editingCategory, setEditingCategory] = React.useState(null);
   const [selectedCategory, setSelectedCategory] = React.useState(null);
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
-  const [baseCurrency, setBaseCurrency] = React.useState(localStorage.getItem('baseCurrency') || 'RUB');
+  // Базовая валюта живёт на сервере: в ней считаются /api/stats и сводки
+  // Telegram, поэтому одного localStorage мало.
+  const [baseCurrency, setBaseCurrency] = useBaseCurrency({ api, user, updateUser, showToast });
   const [searchQuery, setSearchQuery] = React.useState('');
   // Валюта, которая подставляется в форму новой подписки. От baseCurrency
   // отличается тем, что не влияет на отображение сумм.
@@ -83,11 +84,6 @@ function AppContent() {
       loadSubscriptions();
     }
   }, [isAuthenticated, api, loadCategories, loadSubscriptions]);
-
-  // Настройки валюты
-  useEffect(() => {
-    localStorage.setItem('baseCurrency', baseCurrency);
-  }, [baseCurrency]);
 
   useEffect(() => {
     localStorage.setItem('viewMode', viewMode);
@@ -121,14 +117,12 @@ function AppContent() {
 
   // Сумма считается по отфильтрованным подпискам: при активном поиске блок
   // расходов показывает то, что видно на экране, а не общий итог.
-  const totalMonthlyCost = useMemo(() => {
-    const totalRub = filteredSubscriptions.reduce((total, sub) => {
-      const rate = currencyRates[sub.currency] || 1;
-      return total + getMonthlyCost(sub) * rate;
-    }, 0);
-    const rateToBase = currencyRates[baseCurrency] || 1;
-    return totalRub / rateToBase;
-  }, [filteredSubscriptions, currencyRates, baseCurrency]);
+  const totalMonthlyCost = useMemo(() => (
+    filteredSubscriptions.reduce(
+      (total, sub) => total + getMonthlyCostInBase(sub, currencyRates, baseCurrency),
+      0
+    )
+  ), [filteredSubscriptions, currencyRates, baseCurrency]);
 
   // ✅ ФУНКЦИИ (НЕ ХУКИ)
   const openAddSubscriptionModal = (category = null) => {
@@ -419,6 +413,7 @@ function AppContent() {
               categories={categories}
               totalMonthlyCost={totalMonthlyCost}
               baseCurrency={baseCurrency}
+              currencyRates={currencyRates}
               onCategoryClick={scrollToCategory}
               isFiltered={hasQuery}
               totalCount={subscriptions.length}

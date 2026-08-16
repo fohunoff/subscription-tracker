@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { jwtDecode } from 'jwt-decode';
 
-import { useCategoriesApi, useStatsApi, useSubscriptionsApi, useTelegramApi } from './hooks';
+import { useCategoriesApi, useSettingsApi, useStatsApi, useSubscriptionsApi, useTelegramApi } from './hooks';
 import { API_URL } from '../shared/config';
 
 const AuthContext = createContext();
@@ -102,6 +102,12 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Локальная правка профиля после сохранения настроек: без неё состояние
+  // контекста расходилось бы с сервером до следующего /auth/me.
+  const updateUser = (patch) => {
+    setUser(prev => (prev ? { ...prev, ...patch } : prev));
+  };
+
   const logout = async () => {
     try {
       // Уведомляем сервер о выходе
@@ -128,12 +134,14 @@ export const AuthProvider = ({ children }) => {
   const subscriptionsApi = useSubscriptionsApi(API_URL, token);
   const statsApi = useStatsApi(API_URL, token);
   const telegramApi = useTelegramApi(API_URL, token);
+  const settingsApi = useSettingsApi(API_URL, token);
 
   const api = {
     ...categoriesApi, // API методы для работы с категориями
     ...subscriptionsApi, // API методы для работы с подписками
     ...statsApi, // API методы для статистики
     ...telegramApi, // API методы для Telegram
+    ...settingsApi, // API методы для настроек пользователя
   };
 
   const value = {
@@ -142,6 +150,7 @@ export const AuthProvider = ({ children }) => {
     loading,
     loginWithGoogle,
     logout,
+    updateUser,
     isAuthenticated: !!user,
     api
   };

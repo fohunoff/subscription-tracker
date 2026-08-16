@@ -7,7 +7,8 @@ import {
   BellSlashIcon
 } from '@heroicons/react/24/outline';
 import { formatCurrency } from '../../shared/utils';
-import { getCycleMeta, getMonthlyCost, getNextPaymentDate } from '../../shared/utils/cycle';
+import { getCycleMeta, getNextPaymentDate } from '../../shared/utils/cycle';
+import { getMonthlyCostInBase } from '../../shared/utils/currency';
 import { formatHistoryEvent } from './utils/formatHistoryEvent';
 
 const formatFullDate = (date) =>
@@ -81,13 +82,7 @@ function SubscriptionDetails({
 
   const cycleMeta = getCycleMeta(subscription.cycle);
   const nextPayment = getNextPaymentDate(subscription);
-  const monthlyCost = getMonthlyCost(subscription);
-
-  // Пересчёт в базовую валюту: курсы заданы относительно рубля, как и в остальных
-  // подсчётах (см. App.jsx).
-  const rate = currencyRates[subscription.currency] || 1;
-  const rateToBase = currencyRates[baseCurrency] || 1;
-  const monthlyInBase = (monthlyCost * rate) / rateToBase;
+  const monthlyInBase = getMonthlyCostInBase(subscription, currencyRates, baseCurrency);
   const annualInBase = monthlyInBase * 12;
 
   const categoryName =

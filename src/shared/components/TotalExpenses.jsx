@@ -1,12 +1,14 @@
 import React, { useMemo } from 'react';
 import { formatCurrency } from '../utils';
-import { getMonthlyCost, getNextPaymentDate } from '../utils/cycle';
+import { getNextPaymentDate } from '../utils/cycle';
+import { getMonthlyCostInBase } from '../utils/currency';
 
 const TotalExpenses = ({
   subscriptions,
   categories,
   totalMonthlyCost,
   baseCurrency,
+  currencyRates,
   onCategoryClick,
   // При активном поиске блок показывает сумму по найденному, а не по всем
   // подпискам — иначе цифра не соответствовала бы тому, что видно на экране.
@@ -24,7 +26,9 @@ const TotalExpenses = ({
 
       if (!category) return;
 
-      const monthlyCost = getMonthlyCost(sub);
+      // В базовой валюте: суммы категорий подписаны той же валютой, что и
+      // общий итог, поэтому складывать сырую стоимость нельзя.
+      const monthlyCost = getMonthlyCostInBase(sub, currencyRates, baseCurrency);
 
       const catId = category.id || category._id;
 
@@ -46,7 +50,7 @@ const TotalExpenses = ({
     return Object.values(expenses)
       .sort((a, b) => b.total - a.total)
       .slice(0, 5); // Топ-5 категорий
-  }, [subscriptions, categories]);
+  }, [subscriptions, categories, currencyRates, baseCurrency]);
 
   // Вычисляем процент для каждой категории
   const categoriesWithPercentage = useMemo(() => {

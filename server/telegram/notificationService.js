@@ -3,11 +3,13 @@ import Subscription from '../models/Subscription.js';
 import Category from '../models/Category.js';
 import { sendNotification } from './bot.js';
 import {
-  getMonthlyCost,
   getNextPaymentDate,
   getPaymentDateInMonth,
   getCycleMeta
 } from '../utils/cycle.js';
+import { getMonthlyCostInBase } from '../utils/currency.js';
+import { getLatestCurrencyRates } from '../services/currencyService.js';
+import { formatAmount, currencySymbol } from './format.js';
 
 /**
  * Получить количество дней до даты
@@ -20,19 +22,6 @@ function getDaysUntil(date) {
   const diffTime = target - today;
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   return diffDays;
-}
-
-/**
- * Форматировать сумму с валютой
- */
-function formatAmount(cost, currency) {
-  const symbols = {
-    'RUB': '₽',
-    'USD': '$',
-    'EUR': '€',
-    'RSD': 'дин.'
-  };
-  return `${cost} ${symbols[currency] || currency}`;
 }
 
 /**
@@ -320,6 +309,11 @@ async function sendMonthlyNotificationForUser(user) {
     return;
   }
 
+  // Итог складывается из подписок в разных валютах, поэтому пересчитываем
+  // в базовую валюту пользователя (пока не выбрана — в валюту курсов).
+  const { rates, baseCurrency: ratesCurrency } = await getLatestCurrencyRates();
+  const baseCurrency = user.baseCurrency || ratesCurrency;
+
   // Функция для группировки подписок по категориям
   const groupByCategory = (items) => {
     const grouped = {};
@@ -353,8 +347,8 @@ async function sendMonthlyNotificationForUser(user) {
         });
         const amount = formatAmount(sub.cost, sub.currency);
 
-        // Приводим к месячной стоимости независимо от цикла
-        totalCost += getMonthlyCost(sub);
+        // Приводим к месячной стоимости в базовой валюте независимо от цикла
+        totalCost += getMonthlyCostInBase(sub, rates, baseCurrency);
 
         // Иконка уведомлений
         const notifyIcon = sub.notificationsEnabled ? '🔔' : '🔕';
@@ -402,7 +396,7 @@ async function sendMonthlyNotificationForUser(user) {
   }
 
   message += `\n📊 <b>Итого за месяц:</b> ${monthSubscriptions.length} подписок\n`;
-  message += `💰 <b>Примерная сумма:</b> ~${Math.round(totalMonthCost)} ₽`;
+  message += `💰 <b>Примерная сумма:</b> ~${Math.round(totalMonthCost)} ${currencySymbol(baseCurrency)}`;
 
   if (paidSubscriptions.length > 0 && upcomingSubscriptions.length > 0) {
     message += `\n\n<i>✅ Оплачено: ${paidSubscriptions.length} | ⏳ Ожидается: ${upcomingSubscriptions.length}</i>`;

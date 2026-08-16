@@ -3,7 +3,7 @@ import { PlusIcon, PencilSquareIcon, TrashIcon, ChevronDownIcon, Bars3BottomLeft
 import { SubscriptionList } from '../subscriptions';
 import { SubscriptionListSkeleton } from '../../shared';
 import { formatCurrency } from '../../shared/utils';
-import { getMonthlyCost } from '../../shared/utils/cycle';
+import { getMonthlyCostInBase } from '../../shared/utils/currency';
 
 const CategorySection = forwardRef(function CategorySection({
   category,
@@ -47,12 +47,10 @@ const CategorySection = forwardRef(function CategorySection({
   }, [categorySubscriptions, category.sortBy]);
 
   // Рассчитываем общую стоимость подписок в категории
-  const totalMonthlyCost = categorySubscriptions.reduce((total, sub) => {
-    const rate = currencyRates[sub.currency] || 1;
-    return total + getMonthlyCost(sub) * rate;
-  }, 0);
-
-  const totalInBaseCurrency = totalMonthlyCost / (currencyRates[baseCurrency] || 1);
+  const totalInBaseCurrency = categorySubscriptions.reduce(
+    (total, sub) => total + getMonthlyCostInBase(sub, currencyRates, baseCurrency),
+    0
+  );
 
   const handleDeleteCategory = () => {
     if (category.isDefault) {

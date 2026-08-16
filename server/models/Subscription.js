@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { CYCLE_VALUES } from '../utils/cycle.js';
+import { CURRENCY_CODES, DEFAULT_BASE_CURRENCY } from '../utils/currency.js';
 
 const subscriptionSchema = new mongoose.Schema({
   userId: {
@@ -27,8 +28,8 @@ const subscriptionSchema = new mongoose.Schema({
   currency: {
     type: String,
     required: true,
-    enum: ['RUB', 'USD', 'EUR', 'RSD'],
-    default: 'RUB'
+    enum: CURRENCY_CODES,
+    default: DEFAULT_BASE_CURRENCY
   },
   cycle: {
     type: String,

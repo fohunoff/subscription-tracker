@@ -1,7 +1,10 @@
 import User from '../models/User.js';
 import Subscription from '../models/Subscription.js';
 import Category from '../models/Category.js';
-import { getMonthlyCost, getPaymentDateInMonth, getCycleMeta } from '../utils/cycle.js';
+import { getPaymentDateInMonth, getCycleMeta } from '../utils/cycle.js';
+import { getMonthlyCostInBase } from '../utils/currency.js';
+import { getLatestCurrencyRates } from '../services/currencyService.js';
+import { formatAmount, currencySymbol } from './format.js';
 
 /**
  * Обработчик команды /start с токеном подключения
@@ -140,19 +143,6 @@ export const handleHelp = async (ctx) => {
 
 
 /**
- * Форматировать сумму с валютой
- */
-function formatAmount(cost, currency) {
-  const symbols = {
-    'RUB': '₽',
-    'USD': '$',
-    'EUR': '€',
-    'RSD': 'дин.'
-  };
-  return `${cost} ${symbols[currency] || currency}`;
-}
-
-/**
  * Обработчик команды /month - показывает все подписки текущего месяца
  */
 export const handleMonth = async (ctx) => {
@@ -219,6 +209,11 @@ export const handleMonth = async (ctx) => {
       return;
     }
 
+    // Итог складывается из подписок в разных валютах, поэтому пересчитываем
+    // в базовую валюту пользователя (пока не выбрана — в валюту курсов).
+    const { rates, baseCurrency: ratesCurrency } = await getLatestCurrencyRates();
+    const baseCurrency = user.baseCurrency || ratesCurrency;
+
     // Функция для группировки подписок по категориям
     const groupByCategory = (items) => {
       const grouped = {};
@@ -252,8 +247,8 @@ export const handleMonth = async (ctx) => {
           });
           const amount = formatAmount(sub.cost, sub.currency);
 
-          // Приводим к месячной стоимости независимо от цикла
-          totalCost += getMonthlyCost(sub);
+          // Приводим к месячной стоимости в базовой валюте независимо от цикла
+          totalCost += getMonthlyCostInBase(sub, rates, baseCurrency);
 
           // Иконка уведомлений
           const notifyIcon = sub.notificationsEnabled ? '🔔' : '🔕';
@@ -301,7 +296,7 @@ export const handleMonth = async (ctx) => {
     }
 
     message += `\n📊 <b>Итого за месяц:</b> ${monthSubscriptions.length} подписок\n`;
-    message += `💰 <b>Примерная сумма:</b> ~${Math.round(totalMonthCost)} ₽`;
+    message += `💰 <b>Примерная сумма:</b> ~${Math.round(totalMonthCost)} ${currencySymbol(baseCurrency)}`;
 
     if (paidSubscriptions.length > 0 && upcomingSubscriptions.length > 0) {
       message += `\n\n<i>✅ Оплачено: ${paidSubscriptions.length} | ⏳ Ожидается: ${upcomingSubscriptions.length}</i>`;
