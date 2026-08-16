@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { SubscriptionForm, SubscriptionList } from './features/subscriptions';
+import { SubscriptionForm, SubscriptionList, ArchivedSubscriptions } from './features/subscriptions';
 import { ExportData } from './features/telegram';
 import { Modal, TotalExpenses } from './shared';
 import { SettingsModal } from './features/settings';
@@ -10,7 +10,7 @@ import { useToast } from './features/notifications';
 import { Cog6ToothIcon, PlusIcon, TagIcon, SunIcon, MoonIcon } from '@heroicons/react/24/solid';
 import { useCurrencyRates, useTheme } from './features/settings/hooks';
 import { useSubscriptions } from './features/subscriptions/hooks';
-import { formatCurrency } from './shared/utils';
+import { getMonthlyCost } from './shared/utils/cycle';
 import { useCategories } from './features/categories/hooks/useCategories';
 import CategoryForm from './features/categories/CategoryForm';
 import CategorySection from './features/categories/CategorySection';
@@ -25,8 +25,14 @@ function AppContent() {
   const {
     subscriptions,
     setSubscriptions,
+    archivedSubscriptions,
     isLoadingData,
+    isLoadingArchive,
     loadSubscriptions,
+    loadArchivedSubscriptions,
+    archiveSubscription,
+    restoreSubscription,
+    deleteArchivedSubscription,
   } = useSubscriptions(api, showToast);
 
   const {
@@ -79,12 +85,8 @@ function AppContent() {
   // ✅ ВСЕ useMemo ХУКИ
   const totalMonthlyCost = useMemo(() => {
     const totalRub = subscriptions.reduce((total, sub) => {
-      let monthlyCost = sub.cost;
-      if (sub.cycle === 'annually') {
-        monthlyCost = monthlyCost / 12;
-      }
       const rate = currencyRates[sub.currency] || 1;
-      return total + monthlyCost * rate;
+      return total + getMonthlyCost(sub) * rate;
     }, 0);
     const rateToBase = currencyRates[baseCurrency] || 1;
     return totalRub / rateToBase;
@@ -168,6 +170,27 @@ function AppContent() {
       console.error('Ошибка удаления подписки:', error);
       showToast(error.message || 'Ошибка удаления подписки', 'error');
     }
+  };
+
+  const handleArchiveSubscription = async (subscription) => {
+    const confirmed = window.confirm(
+      `Завершить подписку «${subscription.name}»?\n\n` +
+      'Она уйдёт в архив: перестанет учитываться в суммах и уведомлениях, ' +
+      'но сохранит категорию, даты и настройки — восстановить можно в любой момент.'
+    );
+    if (!confirmed) return;
+
+    await archiveSubscription(subscription.id);
+  };
+
+  const handleDeleteArchivedSubscription = async (subscription) => {
+    const confirmed = window.confirm(
+      `Удалить подписку «${subscription.name}» навсегда?\n\n` +
+      'В отличие от архива, это действие необратимо.'
+    );
+    if (!confirmed) return;
+
+    await deleteArchivedSubscription(subscription.id);
   };
 
   const handleOpenEditModal = (subscription) => {
@@ -362,6 +385,7 @@ function AppContent() {
                     baseCurrency={baseCurrency}
                     onDeleteSubscription={handleDeleteSubscription}
                     onEditSubscription={handleOpenEditModal}
+                    onArchiveSubscription={handleArchiveSubscription}
                     onAddSubscription={() => openAddSubscriptionModal(category)}
                     onEditCategory={handleOpenEditCategoryModal}
                     onUpdateCategory={handleUpdateCategory}
@@ -381,6 +405,15 @@ function AppContent() {
             )}
           </section>
           
+          {/* Завершённые подписки */}
+          <ArchivedSubscriptions
+            archivedSubscriptions={archivedSubscriptions}
+            isLoading={isLoadingArchive}
+            onLoad={loadArchivedSubscriptions}
+            onRestore={restoreSubscription}
+            onDelete={handleDeleteArchivedSubscription}
+          />
+
           {/* Секция импорта/экспорта подписок */}
           <section aria-labelledby="import-export-heading" className="bg-white dark:bg-slate-800 rounded-xl p-6 md:p-8">
             <h2 id="import-export-heading" className="text-2xl font-semibold text-slate-700 dark:text-slate-200 mb-3">

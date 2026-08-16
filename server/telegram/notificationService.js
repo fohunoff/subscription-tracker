@@ -2,31 +2,12 @@ import User from '../models/User.js';
 import Subscription from '../models/Subscription.js';
 import Category from '../models/Category.js';
 import { sendNotification } from './bot.js';
-
-/**
- * Получить дату следующего платежа для подписки
- */
-function getNextPaymentDate(subscription) {
-  if (!subscription.fullPaymentDate) return null;
-
-  const startDate = new Date(subscription.fullPaymentDate);
-  const today = new Date();
-  let nextDate = new Date(startDate);
-
-  if (subscription.cycle === 'monthly') {
-    // Добавляем месяцы пока не найдем будущую дату
-    while (nextDate <= today) {
-      nextDate.setMonth(nextDate.getMonth() + 1);
-    }
-  } else if (subscription.cycle === 'annually') {
-    // Добавляем годы пока не найдем будущую дату
-    while (nextDate <= today) {
-      nextDate.setFullYear(nextDate.getFullYear() + 1);
-    }
-  }
-
-  return nextDate;
-}
+import {
+  getMonthlyCost,
+  getNextPaymentDate,
+  getPaymentDateInMonth,
+  getCycleMeta
+} from '../utils/cycle.js';
 
 /**
  * Получить количество дней до даты
@@ -112,6 +93,7 @@ async function sendNotificationsForUser(user) {
   // Получаем все подписки пользователя с включенными уведомлениями
   const subscriptions = await Subscription.find({
     userId: user._id,
+    status: { $ne: 'archived' }, // архивные подписки не напоминают о себе
     notificationsEnabled: true,
     'notifyDaysBefore.0': { $exists: true } // Есть хотя бы один день для уведомления
   });
@@ -244,37 +226,6 @@ function getDaysWord(days) {
 }
 
 /**
- * Получить дату платежа в конкретном месяце/году
- */
-function getPaymentDateInMonth(subscription, month, year) {
-  if (!subscription.fullPaymentDate) return null;
-
-  const startDate = new Date(subscription.fullPaymentDate);
-  const paymentDay = startDate.getDate();
-
-  if (subscription.cycle === 'monthly') {
-    // Для ежемесячных - берём тот же день в указанном месяце
-    return new Date(year, month, paymentDay);
-  } else if (subscription.cycle === 'annually') {
-    // Для ежегодных - проверяем, попадает ли оплата в этот месяц/год
-    const startMonth = startDate.getMonth();
-    const startYear = startDate.getFullYear();
-
-    // Если месяц платежа совпадает с месяцем старта
-    if (month === startMonth) {
-      // Проверяем, был ли уже платёж в этом году
-      if (year >= startYear) {
-        return new Date(year, month, paymentDay);
-      }
-    }
-
-    return null; // Платёж не в этом месяце
-  }
-
-  return null;
-}
-
-/**
  * Проверить и отправить месячные уведомления
  */
 export async function checkAndSendMonthlyNotifications() {
@@ -332,7 +283,8 @@ async function sendMonthlyNotificationForUser(user) {
 
   // Получаем все подписки пользователя
   const subscriptions = await Subscription.find({
-    userId: user._id
+    userId: user._id,
+    status: { $ne: 'archived' }
   }).populate('categoryId');
 
   if (subscriptions.length === 0) {
@@ -401,22 +353,17 @@ async function sendMonthlyNotificationForUser(user) {
         });
         const amount = formatAmount(sub.cost, sub.currency);
 
-        // Конвертируем в месячную стоимость для годовых подписок
-        let monthlyCost = sub.cost;
-        if (sub.cycle === 'annually') {
-          monthlyCost = sub.cost / 12;
-        }
-
-        totalCost += monthlyCost;
+        // Приводим к месячной стоимости независимо от цикла
+        totalCost += getMonthlyCost(sub);
 
         // Иконка уведомлений
         const notifyIcon = sub.notificationsEnabled ? '🔔' : '🔕';
 
         // Цикл платежа
-        const cycleIcon = sub.cycle === 'monthly' ? '📆' : '📅';
+        const cycleMeta = getCycleMeta(sub.cycle);
 
         text += `  ${notifyIcon} ${sub.name}\n`;
-        text += `     ${amount} ${cycleIcon} ${sub.cycle === 'monthly' ? 'в месяц' : 'в год'}\n`;
+        text += `     ${amount} ${cycleMeta.icon} ${cycleMeta.perLabel}\n`;
         text += `     💳 Платёж: ${dateStr}\n`;
 
         if (sub.notificationsEnabled && sub.notifyDaysBefore?.length > 0) {

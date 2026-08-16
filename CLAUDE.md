@@ -48,7 +48,9 @@ src/
 - Subscription: Recurring expenses (name, cost, currency, cycle, paymentDay, fullPaymentDate)
   - References: userId, categoryId
   - Supports: RUB, USD, EUR, RSD currencies
-  - Cycles: monthly, annually
+  - Cycles: monthly, quarterly, annually
+  - status: 'active' | 'archived' + endDate, archivedAt (завершённые подписки)
+- SubscriptionEvent: лог изменений по подписке (created/updated/archived/restored/deleted)
 
 **Authentication:**
 - JWT-based with Bearer token authentication
@@ -59,12 +61,29 @@ src/
 ```
 /api/auth         - Google OAuth login, logout, user info
 /api/categories   - CRUD + reorder operations
-/api/subscriptions - CRUD + import operations
+/api/subscriptions - CRUD + import + archive/restore/history
 /api/stats        - Aggregated statistics
 /api/health       - Health check endpoint
 /api/telegram     - Telegram bot connection
 /api/currency-rates - Cached currency rates
 ```
+
+**Циклы оплаты — одно место на слой.** `server/utils/cycle.js` и
+`src/shared/utils/cycle.js` описывают циклы (длительность в месяцах, подписи) и
+считают производные величины: месячную/годовую стоимость, дату следующего платежа,
+попадание платежа в конкретный месяц. Раньше эта логика была продублирована
+примерно в 15 местах — не возвращайте `if (cycle === 'annually')` в компоненты и
+роуты, добавляйте цикл в `CYCLES`.
+
+Квартальной подписке обязательна `fullPaymentDate`: по одному дню месяца
+невозможно определить, в какие месяцы приходится списание. Проверяется и на
+сервере (`validateSubscriptionData`), и в форме.
+
+**Архив подписок.** Активные выбираются как `{ status: { $ne: 'archived' } }`, а не
+`status: 'active'` — документы, созданные до появления поля, его не имеют и должны
+считаться активными. Есть идемпотентная миграция
+`server/scripts/migrate-add-status.js`, но приложение работает и без неё.
+Архивные подписки не участвуют в суммах, статистике и Telegram-уведомлениях.
 
 **Server composition:** `server/app.js` собирает Express-приложение (helmet, CORS,
 rate-limit, роуты, обработка ошибок) и экспортирует его; `server/index.js` только

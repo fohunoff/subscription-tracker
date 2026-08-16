@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { CYCLE_VALUES } from '../utils/cycle.js';
 
 const subscriptionSchema = new mongoose.Schema({
   userId: {
@@ -32,8 +33,24 @@ const subscriptionSchema = new mongoose.Schema({
   cycle: {
     type: String,
     required: true,
-    enum: ['monthly', 'annually'],
+    enum: CYCLE_VALUES,
     default: 'monthly'
+  },
+  // Активная подписка участвует в суммах, статистике и уведомлениях;
+  // архивная сохраняет все настройки, чтобы её можно было восстановить.
+  status: {
+    type: String,
+    enum: ['active', 'archived'],
+    default: 'active',
+    index: true
+  },
+  // Дата, с которой подписка перестала действовать (день отписки).
+  // Заполняется при архивации, но может быть задана и вручную заранее.
+  endDate: {
+    type: Date
+  },
+  archivedAt: {
+    type: Date
   },
   paymentDay: {
     type: Number,
@@ -66,6 +83,8 @@ const subscriptionSchema = new mongoose.Schema({
 });
 
 subscriptionSchema.index({ userId: 1, categoryId: 1, createdAt: -1 });
+// Основная выборка — активные подписки пользователя
+subscriptionSchema.index({ userId: 1, status: 1 });
 
 const Subscription = mongoose.model('Subscription', subscriptionSchema);
 export default Subscription;

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import DatePicker, { registerLocale } from "react-datepicker";
 import ru from 'date-fns/locale/ru';
 import { PlusCircleIcon, CalendarIcon, CheckCircleIcon } from '@heroicons/react/24/solid';
+import { CYCLE_OPTIONS, cycleRequiresFullDate } from '../../shared/utils/cycle';
 
 registerLocale('ru', ru);
 
@@ -24,7 +25,9 @@ function SubscriptionForm({
 
   // Определяем, нужно ли показывать календарь
   const currentCategory = categories.find(cat => cat.id === categoryId);
-  const showDatePicker = currentCategory?.hasReminders !== false;
+  // Квартальной подписке полная дата нужна всегда: по одному дню месяца
+  // невозможно понять, в какие месяцы приходится списание.
+  const showDatePicker = currentCategory?.hasReminders !== false || cycleRequiresFullDate(cycle);
 
   useEffect(() => {
     if (isEditMode && initialData) {
@@ -82,9 +85,13 @@ function SubscriptionForm({
       return;
     }
 
-    // Проверяем дату только для категорий с напоминаниями
+    // Проверяем дату для категорий с напоминаниями и для квартальных подписок
     if (showDatePicker && !paymentDate) {
-      alert('Пожалуйста, укажите дату платежа для категории с напоминаниями.');
+      alert(
+        cycleRequiresFullDate(cycle)
+          ? 'Для квартальной подписки укажите дату платежа — по ней определяются месяцы списания.'
+          : 'Пожалуйста, укажите дату платежа для категории с напоминаниями.'
+      );
       return;
     }
 
@@ -216,8 +223,9 @@ function SubscriptionForm({
             onChange={(e) => setCycle(e.target.value)} 
             className={inputBaseClass}
           >
-            <option value="monthly">Ежемесячно</option>
-            <option value="annually">Ежегодно</option>
+            {CYCLE_OPTIONS.map(option => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
           </select>
         </div>
 

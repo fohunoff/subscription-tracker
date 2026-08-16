@@ -1,6 +1,7 @@
 import User from '../models/User.js';
 import Subscription from '../models/Subscription.js';
 import Category from '../models/Category.js';
+import { getMonthlyCost, getPaymentDateInMonth, getCycleMeta } from '../utils/cycle.js';
 
 /**
  * Обработчик команды /start с токеном подключения
@@ -139,37 +140,6 @@ export const handleHelp = async (ctx) => {
 
 
 /**
- * Получить дату платежа в конкретном месяце/году
- */
-function getPaymentDateInMonth(subscription, month, year) {
-  if (!subscription.fullPaymentDate) return null;
-
-  const startDate = new Date(subscription.fullPaymentDate);
-  const paymentDay = startDate.getDate();
-
-  if (subscription.cycle === 'monthly') {
-    // Для ежемесячных - берём тот же день в указанном месяце
-    return new Date(year, month, paymentDay);
-  } else if (subscription.cycle === 'annually') {
-    // Для ежегодных - проверяем, попадает ли оплата в этот месяц/год
-    const startMonth = startDate.getMonth();
-    const startYear = startDate.getFullYear();
-
-    // Если месяц платежа совпадает с месяцем старта
-    if (month === startMonth) {
-      // Проверяем, был ли уже платёж в этом году
-      if (year >= startYear) {
-        return new Date(year, month, paymentDay);
-      }
-    }
-
-    return null; // Платёж не в этом месяце
-  }
-
-  return null;
-}
-
-/**
  * Форматировать сумму с валютой
  */
 function formatAmount(cost, currency) {
@@ -202,7 +172,8 @@ export const handleMonth = async (ctx) => {
 
     // Получаем все подписки пользователя
     const subscriptions = await Subscription.find({
-      userId: user._id
+      userId: user._id,
+      status: { $ne: 'archived' } // архив в отчёт не попадает
     }).populate('categoryId');
 
     if (subscriptions.length === 0) {
@@ -281,22 +252,17 @@ export const handleMonth = async (ctx) => {
           });
           const amount = formatAmount(sub.cost, sub.currency);
 
-          // Конвертируем в месячную стоимость для годовых подписок
-          let monthlyCost = sub.cost;
-          if (sub.cycle === 'annually') {
-            monthlyCost = sub.cost / 12;
-          }
-
-          totalCost += monthlyCost;
+          // Приводим к месячной стоимости независимо от цикла
+          totalCost += getMonthlyCost(sub);
 
           // Иконка уведомлений
           const notifyIcon = sub.notificationsEnabled ? '🔔' : '🔕';
 
           // Цикл платежа
-          const cycleIcon = sub.cycle === 'monthly' ? '📆' : '📅';
+          const cycleMeta = getCycleMeta(sub.cycle);
 
           text += `  ${notifyIcon} ${sub.name}\n`;
-          text += `     ${amount} ${cycleIcon} ${sub.cycle === 'monthly' ? 'в месяц' : 'в год'}\n`;
+          text += `     ${amount} ${cycleMeta.icon} ${cycleMeta.perLabel}\n`;
           text += `     💳 Платёж: ${dateStr}\n`;
 
           if (sub.notificationsEnabled && sub.notifyDaysBefore?.length > 0) {

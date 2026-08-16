@@ -2,40 +2,63 @@ import { Router } from 'express';
 import Subscription from '../models/Subscription.js';
 import Category from '../models/Category.js';
 import { validateSubscriptionData } from '../utils/index.js';
+import { isValidCycle, CYCLE_VALUES } from '../utils/cycle.js';
+import {
+  logSubscriptionEvent,
+  logSubscriptionUpdate,
+  getSubscriptionHistory
+} from '../services/subscriptionEvents.js';
 import authenticateToken from '../middlewares/authenticateToken.js';
 
 const router = Router();
 
-// Получение всех подписок пользователя (группированные по категориям)
+/**
+ * Единый формат подписки для клиента. Раньше он был скопирован в трёх местах,
+ * из-за чего новые поля приходилось добавлять в каждое.
+ */
+const formatSubscription = (sub) => ({
+  id: sub._id.toString(),
+  name: sub.name,
+  cost: sub.cost,
+  currency: sub.currency,
+  cycle: sub.cycle,
+  paymentDay: sub.paymentDay,
+  fullPaymentDate: sub.fullPaymentDate,
+  status: sub.status || 'active',
+  endDate: sub.endDate,
+  archivedAt: sub.archivedAt,
+  categoryId: sub.categoryId._id.toString(),
+  category: {
+    id: sub.categoryId._id.toString(),
+    name: sub.categoryId.name,
+    hasReminders: sub.categoryId.hasReminders,
+    color: sub.categoryId.color
+  },
+  notificationsEnabled: sub.notificationsEnabled || false,
+  notifyDaysBefore: sub.notifyDaysBefore || [],
+  lastNotificationSent: sub.lastNotificationSent,
+  createdAt: sub.createdAt,
+  updatedAt: sub.updatedAt
+});
+
+/**
+ * Фильтр по статусу. Документы, созданные до появления поля status, не имеют его
+ * вовсе — поэтому активные выбираются как «не archived», а не «status: active».
+ */
+const statusFilter = (status) =>
+  status === 'archived' ? { status: 'archived' } : { status: { $ne: 'archived' } };
+
+// Получение подписок пользователя. ?status=archived — архив, иначе активные.
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const subscriptions = await Subscription.find({ userId: req.userDoc._id })
+    const subscriptions = await Subscription.find({
+      userId: req.userDoc._id,
+      ...statusFilter(req.query.status)
+    })
       .populate('categoryId')
       .sort({ createdAt: -1 });
 
-    const formattedSubs = subscriptions.map(sub => ({
-      id: sub._id.toString(),
-      name: sub.name,
-      cost: sub.cost,
-      currency: sub.currency,
-      cycle: sub.cycle,
-      paymentDay: sub.paymentDay,
-      fullPaymentDate: sub.fullPaymentDate,
-      categoryId: sub.categoryId._id.toString(),
-      category: {
-        id: sub.categoryId._id.toString(),
-        name: sub.categoryId.name,
-        hasReminders: sub.categoryId.hasReminders,
-        color: sub.categoryId.color
-      },
-      notificationsEnabled: sub.notificationsEnabled || false,
-      notifyDaysBefore: sub.notifyDaysBefore || [],
-      lastNotificationSent: sub.lastNotificationSent,
-      createdAt: sub.createdAt,
-      updatedAt: sub.updatedAt
-    }));
-
-    res.json({ success: true, subscriptions: formattedSubs });
+    res.json({ success: true, subscriptions: subscriptions.map(formatSubscription) });
   } catch (error) {
     console.error('Ошибка получения подписок:', error);
     res.status(500).json({ message: 'Ошибка сервера' });
@@ -48,9 +71,9 @@ router.post('/', authenticateToken, async (req, res) => {
     const { name, cost, currency, cycle, paymentDay, fullPaymentDate, categoryId, notificationsEnabled, notifyDaysBefore } = req.body;
 
     // Проверяем, что категория существует и принадлежит пользователю
-    const category = await Category.findOne({ 
-      _id: categoryId, 
-      userId: req.userDoc._id 
+    const category = await Category.findOne({
+      _id: categoryId,
+      userId: req.userDoc._id
     });
 
     if (!category) {
@@ -90,32 +113,18 @@ router.post('/', authenticateToken, async (req, res) => {
       ...subscriptionData
     });
 
+    await logSubscriptionEvent({
+      userId: req.userDoc._id,
+      subscription: newSubscription,
+      type: 'created'
+    });
+
     // Получаем созданную подписку с категорией
     const populatedSubscription = await Subscription.findById(newSubscription._id).populate('categoryId');
 
     res.status(201).json({
       success: true,
-      subscription: {
-        id: populatedSubscription._id.toString(),
-        name: populatedSubscription.name,
-        cost: populatedSubscription.cost,
-        currency: populatedSubscription.currency,
-        cycle: populatedSubscription.cycle,
-        paymentDay: populatedSubscription.paymentDay,
-        fullPaymentDate: populatedSubscription.fullPaymentDate,
-        categoryId: populatedSubscription.categoryId._id.toString(),
-        category: {
-          id: populatedSubscription.categoryId._id.toString(),
-          name: populatedSubscription.categoryId.name,
-          hasReminders: populatedSubscription.categoryId.hasReminders,
-          color: populatedSubscription.categoryId.color
-        },
-        notificationsEnabled: populatedSubscription.notificationsEnabled || false,
-        notifyDaysBefore: populatedSubscription.notifyDaysBefore || [],
-        lastNotificationSent: populatedSubscription.lastNotificationSent,
-        createdAt: populatedSubscription.createdAt,
-        updatedAt: populatedSubscription.updatedAt
-      },
+      subscription: formatSubscription(populatedSubscription),
       message: 'Подписка создана успешно'
     });
   } catch (error) {
@@ -128,21 +137,24 @@ router.post('/', authenticateToken, async (req, res) => {
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, cost, currency, cycle, paymentDay, fullPaymentDate, categoryId, notificationsEnabled, notifyDaysBefore } = req.body;
+    const { name, cost, currency, cycle, paymentDay, fullPaymentDate, endDate, categoryId, notificationsEnabled, notifyDaysBefore } = req.body;
 
     const subscription = await Subscription.findOne({ _id: id, userId: req.userDoc._id }).populate('categoryId');
     if (!subscription) {
       return res.status(404).json({ message: 'Подписка не найдена' });
     }
 
+    // Снимок до изменений — для лога
+    const before = subscription.toObject();
+
     const updateData = {};
 
     // Проверяем, изменилась ли категория
     let targetCategory = subscription.categoryId;
     if (categoryId && categoryId !== subscription.categoryId._id.toString()) {
-      const newCategory = await Category.findOne({ 
-        _id: categoryId, 
-        userId: req.userDoc._id 
+      const newCategory = await Category.findOne({
+        _id: categoryId,
+        userId: req.userDoc._id
       });
       if (!newCategory) {
         return res.status(400).json({ message: 'Указанная категория не найдена' });
@@ -169,10 +181,13 @@ router.put('/:id', authenticateToken, async (req, res) => {
       updateData.currency = currency;
     }
     if (cycle !== undefined) {
-      if (!['monthly', 'annually'].includes(cycle)) {
-        throw new Error('Цикл оплаты должен быть monthly или annually');
+      if (!isValidCycle(cycle)) {
+        throw new Error(`Цикл оплаты должен быть одним из: ${CYCLE_VALUES.join(', ')}`);
       }
       updateData.cycle = cycle;
+    }
+    if (endDate !== undefined) {
+      updateData.endDate = endDate || undefined;
     }
 
     // Обработка полей даты в зависимости от типа категории
@@ -201,40 +216,140 @@ router.put('/:id', authenticateToken, async (req, res) => {
       updateData.notifyDaysBefore = notifyDaysBefore;
     }
 
+    // Квартальной подписке нужна полная дата — проверяем на итоговом состоянии,
+    // иначе смену цикла на quarterly можно было бы протащить без даты.
+    const resultingCycle = updateData.cycle ?? subscription.cycle;
+    const resultingFullDate = updateData.fullPaymentDate ?? subscription.fullPaymentDate;
+    if (resultingCycle === 'quarterly' && !resultingFullDate) {
+      throw new Error('Для квартальной подписки укажите полную дату платежа');
+    }
+
     const updatedSubscription = await Subscription.findByIdAndUpdate(
       id,
       updateData,
       { new: true, runValidators: true }
     ).populate('categoryId');
 
+    await logSubscriptionUpdate({
+      userId: req.userDoc._id,
+      before,
+      after: updatedSubscription
+    });
+
     res.json({
       success: true,
-      subscription: {
-        id: updatedSubscription._id.toString(),
-        name: updatedSubscription.name,
-        cost: updatedSubscription.cost,
-        currency: updatedSubscription.currency,
-        cycle: updatedSubscription.cycle,
-        paymentDay: updatedSubscription.paymentDay,
-        fullPaymentDate: updatedSubscription.fullPaymentDate,
-        categoryId: updatedSubscription.categoryId._id.toString(),
-        category: {
-          id: updatedSubscription.categoryId._id.toString(),
-          name: updatedSubscription.categoryId.name,
-          hasReminders: updatedSubscription.categoryId.hasReminders,
-          color: updatedSubscription.categoryId.color
-        },
-        notificationsEnabled: updatedSubscription.notificationsEnabled || false,
-        notifyDaysBefore: updatedSubscription.notifyDaysBefore || [],
-        lastNotificationSent: updatedSubscription.lastNotificationSent,
-        createdAt: updatedSubscription.createdAt,
-        updatedAt: updatedSubscription.updatedAt
-      },
+      subscription: formatSubscription(updatedSubscription),
       message: 'Подписка обновлена успешно'
     });
   } catch (error) {
     console.error('Ошибка обновления подписки:', error);
     res.status(400).json({ message: error.message });
+  }
+});
+
+// Архивация подписки («отписался»): настройки сохраняются, из сумм исчезает
+router.patch('/:id/archive', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { endDate } = req.body;
+
+    const subscription = await Subscription.findOne({ _id: id, userId: req.userDoc._id }).populate('categoryId');
+    if (!subscription) {
+      return res.status(404).json({ message: 'Подписка не найдена' });
+    }
+    if (subscription.status === 'archived') {
+      return res.status(400).json({ message: 'Подписка уже в архиве' });
+    }
+
+    const finishedAt = endDate ? new Date(endDate) : new Date();
+    if (isNaN(finishedAt.getTime())) {
+      return res.status(400).json({ message: 'Некорректная дата окончания' });
+    }
+
+    subscription.status = 'archived';
+    subscription.archivedAt = new Date();
+    subscription.endDate = subscription.endDate || finishedAt;
+    // Уведомления по архивной подписке не нужны, но исходную настройку
+    // не трём — она понадобится при восстановлении.
+    await subscription.save();
+
+    await logSubscriptionEvent({
+      userId: req.userDoc._id,
+      subscription,
+      type: 'archived',
+      changes: { endDate: { from: null, to: subscription.endDate.toISOString() } }
+    });
+
+    res.json({
+      success: true,
+      subscription: formatSubscription(subscription),
+      message: `Подписка "${subscription.name}" перенесена в архив`
+    });
+  } catch (error) {
+    console.error('Ошибка архивации подписки:', error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+// Восстановление подписки из архива со всеми прежними настройками
+router.patch('/:id/restore', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const subscription = await Subscription.findOne({ _id: id, userId: req.userDoc._id }).populate('categoryId');
+    if (!subscription) {
+      return res.status(404).json({ message: 'Подписка не найдена' });
+    }
+    if (subscription.status !== 'archived') {
+      return res.status(400).json({ message: 'Подписка не в архиве' });
+    }
+
+    subscription.status = 'active';
+    subscription.archivedAt = undefined;
+    subscription.endDate = undefined;
+    await subscription.save();
+
+    await logSubscriptionEvent({
+      userId: req.userDoc._id,
+      subscription,
+      type: 'restored'
+    });
+
+    res.json({
+      success: true,
+      subscription: formatSubscription(subscription),
+      message: `Подписка "${subscription.name}" восстановлена`
+    });
+  } catch (error) {
+    console.error('Ошибка восстановления подписки:', error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+// История изменений подписки
+router.get('/:id/history', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const subscription = await Subscription.findOne({ _id: id, userId: req.userDoc._id });
+    if (!subscription) {
+      return res.status(404).json({ message: 'Подписка не найдена' });
+    }
+
+    const events = await getSubscriptionHistory(req.userDoc._id, id);
+
+    res.json({
+      success: true,
+      events: events.map(event => ({
+        id: event._id.toString(),
+        type: event.type,
+        changes: event.changes,
+        createdAt: event.createdAt
+      }))
+    });
+  } catch (error) {
+    console.error('Ошибка получения истории подписки:', error);
+    res.status(500).json({ message: 'Ошибка сервера' });
   }
 });
 
@@ -246,6 +361,13 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     if (!deletedSubscription) {
       return res.status(404).json({ message: 'Подписка не найдена' });
     }
+
+    await logSubscriptionEvent({
+      userId: req.userDoc._id,
+      subscription: deletedSubscription,
+      type: 'deleted'
+    });
+
     res.json({ success: true, message: `Подписка "${deletedSubscription.name}" удалена успешно` });
   } catch (error) {
     console.error('Ошибка удаления подписки:', error);
@@ -264,18 +386,18 @@ router.post('/import', authenticateToken, async (req, res) => {
     // Проверяем, что категория существует
     let targetCategory;
     if (categoryId) {
-      targetCategory = await Category.findOne({ 
-        _id: categoryId, 
-        userId: req.userDoc._id 
+      targetCategory = await Category.findOne({
+        _id: categoryId,
+        userId: req.userDoc._id
       });
       if (!targetCategory) {
         return res.status(400).json({ message: 'Указанная категория не найдена' });
       }
     } else {
       // Используем дефолтную категорию
-      targetCategory = await Category.findOne({ 
-        userId: req.userDoc._id, 
-        isDefault: true 
+      targetCategory = await Category.findOne({
+        userId: req.userDoc._id,
+        isDefault: true
       });
       if (!targetCategory) {
         // Создаем дефолтную категорию, если её нет
@@ -319,7 +441,12 @@ router.post('/import', authenticateToken, async (req, res) => {
           }
 
           validateSubscriptionData(normalizedSub, targetCategory.hasReminders);
-          await Subscription.create(normalizedSub);
+          const created = await Subscription.create(normalizedSub);
+          await logSubscriptionEvent({
+            userId: req.userDoc._id,
+            subscription: created,
+            type: 'created'
+          });
           addedCount++;
         }
       } catch (error) {

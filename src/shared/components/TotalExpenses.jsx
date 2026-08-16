@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { formatCurrency } from '../utils';
+import { getMonthlyCost } from '../utils/cycle';
 
 const TotalExpenses = ({
   subscriptions,
@@ -18,10 +19,7 @@ const TotalExpenses = ({
 
       if (!category) return;
 
-      let monthlyCost = sub.cost;
-      if (sub.cycle === 'annually') {
-        monthlyCost = sub.cost / 12;
-      }
+      const monthlyCost = getMonthlyCost(sub);
 
       const catId = category.id || category._id;
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, forwardRef } from 'react';
 import { PlusIcon, PencilSquareIcon, TrashIcon, ChevronDownIcon, Bars3BottomLeftIcon, CalendarDaysIcon } from '@heroicons/react/24/outline';
 import { SubscriptionList } from '../subscriptions';
 import { formatCurrency } from '../../shared/utils';
+import { getMonthlyCost } from '../../shared/utils/cycle';
 
 const CategorySection = forwardRef(function CategorySection({
   category,
@@ -10,6 +11,7 @@ const CategorySection = forwardRef(function CategorySection({
   baseCurrency,
   onDeleteSubscription,
   onEditSubscription,
+  onArchiveSubscription,
   onAddSubscription,
   onEditCategory,
   onDeleteCategory,
@@ -44,12 +46,8 @@ const CategorySection = forwardRef(function CategorySection({
 
   // Рассчитываем общую стоимость подписок в категории
   const totalMonthlyCost = categorySubscriptions.reduce((total, sub) => {
-    let monthlyCost = sub.cost;
-    if (sub.cycle === 'annually') {
-      monthlyCost = monthlyCost / 12;
-    }
     const rate = currencyRates[sub.currency] || 1;
-    return total + monthlyCost * rate;
+    return total + getMonthlyCost(sub) * rate;
   }, 0);
 
   const totalInBaseCurrency = totalMonthlyCost / (currencyRates[baseCurrency] || 1);
@@ -187,10 +185,11 @@ const CategorySection = forwardRef(function CategorySection({
               subscriptions={sortedSubscriptions}
               onDeleteSubscription={onDeleteSubscription}
               onEditSubscription={onEditSubscription}
+              onArchiveSubscription={onArchiveSubscription}
             />
             {categorySubscriptions.length > 0 && (
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-6 text-right">
-                * Годовые подписки конвертированы в месячную стоимость.
+                * Квартальные и годовые подписки конвертированы в месячную стоимость.
               </p>
             )}
           </>

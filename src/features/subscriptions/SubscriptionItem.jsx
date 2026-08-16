@@ -1,6 +1,7 @@
 import React from 'react';
-import { CalendarDaysIcon, TrashIcon, CurrencyDollarIcon, PencilSquareIcon, BellIcon, BellSlashIcon } from '@heroicons/react/24/outline';
+import { CalendarDaysIcon, TrashIcon, CurrencyDollarIcon, PencilSquareIcon, BellIcon, BellSlashIcon, ArchiveBoxIcon } from '@heroicons/react/24/outline';
 import { formatCurrency } from '../../shared/utils';
+import { getCycleMeta } from '../../shared/utils/cycle';
 
 // fallback currency symbols
 const CURRENCY_SYMBOLS = {
@@ -11,8 +12,12 @@ const CURRENCY_SYMBOLS = {
 };
 
 
-function SubscriptionItem({ subscription, onDeleteSubscription, onEditSubscription }) {
-  const cycleText = subscription.cycle === 'annually' ? 'год' : 'мес.';
+function SubscriptionItem({ subscription, onDeleteSubscription, onEditSubscription, onArchiveSubscription }) {
+  const cycleMeta = getCycleMeta(subscription.cycle);
+  const cycleText = cycleMeta.shortLabel;
+  // Для ежемесячных достаточно дня месяца, остальным нужна дата: по ней видно,
+  // в какие именно месяцы приходится платёж.
+  const isMonthly = subscription.cycle === 'monthly';
 
   return (
     <li className="bg-slate-50 hover:bg-slate-100 p-4 rounded-lg shadow-sm border border-slate-200 transition-all duration-150 ease-in-out flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0 sm:space-x-4">
@@ -28,8 +33,9 @@ function SubscriptionItem({ subscription, onDeleteSubscription, onEditSubscripti
           <div className="flex items-center">
             <CalendarDaysIcon className="h-4 w-4 mr-1 text-slate-500" />
             <span>
-              {subscription.cycle === 'annually'
-                ? (() => {
+              {isMonthly
+                ? `День оплаты: ${subscription.paymentDay} число каждого месяца`
+                : (() => {
                     let date;
                     if (subscription.fullPaymentDate) {
                       date = new Date(subscription.fullPaymentDate);
@@ -38,9 +44,11 @@ function SubscriptionItem({ subscription, onDeleteSubscription, onEditSubscripti
                       const today = new Date();
                       date = new Date(today.getFullYear(), today.getMonth(), subscription.paymentDay);
                     }
-                    return `Дата оплаты: ${date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })} каждого года`;
+                    const dateStr = date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+                    return subscription.cycle === 'quarterly'
+                      ? `Оплата: ${dateStr}, далее каждые 3 месяца`
+                      : `Дата оплаты: ${dateStr} каждого года`;
                   })()
-                : `День оплаты: ${subscription.paymentDay} число каждого месяца`
               }
             </span>
           </div>
@@ -71,6 +79,16 @@ function SubscriptionItem({ subscription, onDeleteSubscription, onEditSubscripti
         >
           <PencilSquareIcon className="h-5 w-5" />
         </button>
+        {onArchiveSubscription && (
+          <button
+            onClick={() => onArchiveSubscription(subscription)}
+            className="p-2 rounded-md text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-900/30 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-opacity-50 transition-colors duration-150"
+            aria-label={`Завершить подписку ${subscription.name}`}
+            title="Завершить подписку — уйдёт в архив с сохранением настроек"
+          >
+            <ArchiveBoxIcon className="h-5 w-5" />
+          </button>
+        )}
         <button
           onClick={() => onDeleteSubscription(subscription.id)}
           className="p-2 rounded-md text-brand-danger hover:bg-red-100 dark:hover:bg-red-900/30 focus:outline-none focus:ring-2 focus:ring-brand-danger focus:ring-opacity-50 transition-colors duration-150"
