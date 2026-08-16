@@ -1,49 +1,11 @@
 import process from 'process';
-import express from 'express';
 import mongoose from 'mongoose';
-import cors from 'cors';
 
-import { config } from 'dotenv';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-
-import authRoutes from './routes/auth.js';
-import subscriptionRoutes from './routes/subscriptions.js';
-import categoriesRoutes from './routes/categories.js';
-import statsRoutes from './routes/stats.js';
-import healthRoutes from './routes/health.js';
-import telegramRoutes from './routes/telegram.js';
-import currencyRatesRoutes from './routes/currencyRates.js';
+import { env } from './config.js';
+import app from './app.js';
 import { initBot, startBot, stopBot } from './telegram/bot.js';
 import { startScheduler, stopScheduler } from './telegram/scheduler.js';
 import { initializeCurrencyRates } from './services/currencyService.js';
-
-// Настройка __dirname для ES modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-// Загружаем переменные окружения
-config({ path: join(__dirname, '.env') });
-
-const app = express();
-
-// =====================
-// MIDDLEWARE
-// =====================
-
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-  credentials: true
-}));
-app.use(express.json({ limit: '10mb' }));
-
-// Логирование запросов в development режиме
-if (process.env.NODE_ENV === 'development') {
-  app.use((req, res, next) => {
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
-    next();
-  });
-}
 
 // =====================
 // ПОДКЛЮЧЕНИЕ К MONGODB
@@ -51,9 +13,7 @@ if (process.env.NODE_ENV === 'development') {
 
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/subscription-tracker', {
-      // Новые опции подключения для Mongoose 6+
-    });
+    const conn = await mongoose.connect(env.mongodbUri);
     console.log(`✅ MongoDB подключена: ${conn.connection.host}`);
   } catch (error) {
     console.error('❌ Ошибка подключения к MongoDB:', error.message);
@@ -63,39 +23,6 @@ const connectDB = async () => {
 };
 
 // =====================
-// ROUTES
-// =====================
-app.use('/api/auth', authRoutes);
-app.use('/api/subscriptions', subscriptionRoutes);
-app.use('/api/categories', categoriesRoutes);
-app.use('/api/stats', statsRoutes);
-app.use('/api/health', healthRoutes);
-app.use('/api/telegram', telegramRoutes);
-app.use('/api/currency-rates', currencyRatesRoutes);
-
-// =====================
-// ОБРАБОТКА ОШИБОК
-// =====================
-
-// 404 для неизвестных маршрутов
-app.use('*', (req, res) => {
-  res.status(404).json({
-    message: 'Маршрут не найден',
-    path: req.originalUrl,
-    method: req.method
-  });
-});
-
-// Глобальный обработчик ошибок
-app.use((error, req, res) => {
-  console.error('Необработанная ошибка:', error);
-  res.status(500).json({
-    message: 'Внутренняя ошибка сервера',
-    ...(process.env.NODE_ENV === 'development' && { error: error.message, stack: error.stack })
-  });
-});
-
-// =====================
 // ЗАПУСК СЕРВЕРА
 // =====================
 
@@ -103,29 +30,20 @@ const startServer = async () => {
   try {
     await connectDB();
 
-    const PORT = process.env.PORT || 5000;
+    const PORT = env.port;
 
     const server = app.listen(PORT, '0.0.0.0', () => {
-      console.log(`🚀 Сервер запущен на порту ${PORT}`);
+      console.log(`🚀 Сервер запущен на порту ${PORT} (${env.nodeEnv})`);
       console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
-      console.log(`🔗 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
-      // Проверяем переменные окружения
-      const requiredEnvVars = ['GOOGLE_CLIENT_ID'];
-      const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
-      if (missingVars.length > 0) {
-        console.warn('⚠️  Отсутствуют переменные окружения:', missingVars.join(', '));
-        console.warn('💡 Создайте .env файл с необходимыми переменными');
-      } else {
-        console.log('✅ Все переменные окружения настроены');
-      }
-      if (!process.env.JWT_SECRET) {
-        console.warn('⚠️  JWT_SECRET не установлен, используется fallback ключ');
-      }
-      // Проверка Telegram переменных
-      if (!process.env.TELEGRAM_BOT_TOKEN) {
+      console.log(`🔗 Разрешённые origin: ${env.allowedOrigins.join(', ')}`);
+      // JWT_SECRET и GOOGLE_CLIENT_ID проверены в config.js до старта —
+      // сюда выполнение доходит только если они заданы.
+      console.log('✅ Обязательные переменные окружения настроены');
+
+      if (!env.telegramBotToken) {
         console.warn('⚠️  TELEGRAM_BOT_TOKEN не установлен, Telegram уведомления не будут работать');
       }
-      if (!process.env.TELEGRAM_BOT_USERNAME) {
+      if (!env.telegramBotUsername) {
         console.warn('⚠️  TELEGRAM_BOT_USERNAME не установлен');
       }
 
@@ -133,7 +51,7 @@ const startServer = async () => {
       initializeCurrencyRates();
 
       // Запускаем Telegram бота ПОСЛЕ запуска HTTP сервера
-      const bot = initBot(process.env.TELEGRAM_BOT_TOKEN);
+      const bot = initBot(env.telegramBotToken);
       if (bot) {
         startBot(); // Без await - запускаем в фоне
         startScheduler(); // Запускаем scheduler для уведомлений
