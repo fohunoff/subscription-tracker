@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, forwardRef } from 'react';
 import { PlusIcon, PencilSquareIcon, TrashIcon, ChevronDownIcon, Bars3BottomLeftIcon, CalendarDaysIcon } from '@heroicons/react/24/outline';
 import { SubscriptionList } from '../subscriptions';
+import { SubscriptionListSkeleton } from '../../shared';
 import { formatCurrency } from '../../shared/utils';
 import { getMonthlyCost } from '../../shared/utils/cycle';
 
@@ -176,10 +177,7 @@ const CategorySection = forwardRef(function CategorySection({
         style={{ transitionProperty: 'max-height, opacity' }}
       >
         {isLoadingData ? (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary mx-auto mb-4"></div>
-            <p className="text-slate-600 dark:text-slate-300">Загрузка подписок...</p>
-          </div>
+          <SubscriptionListSkeleton count={2} />
         ) : (
           <>
             <SubscriptionList

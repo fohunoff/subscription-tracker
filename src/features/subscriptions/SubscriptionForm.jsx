@@ -3,6 +3,7 @@ import DatePicker, { registerLocale } from "react-datepicker";
 import ru from 'date-fns/locale/ru';
 import { PlusCircleIcon, CalendarIcon, CheckCircleIcon } from '@heroicons/react/24/solid';
 import { CYCLE_OPTIONS, cycleRequiresFullDate } from '../../shared/utils/cycle';
+import { CURRENCY_OPTIONS, DEFAULT_CURRENCY } from '../../shared/utils/currency';
 
 registerLocale('ru', ru);
 
@@ -12,11 +13,12 @@ function SubscriptionForm({
   initialData, 
   isEditMode,
   categories = [],
-  selectedCategory = null 
+  selectedCategory = null,
+  defaultCurrency = DEFAULT_CURRENCY
 }) {
   const [name, setName] = useState('');
   const [cost, setCost] = useState('');
-  const [currency, setCurrency] = useState('RUB');
+  const [currency, setCurrency] = useState(defaultCurrency);
   const [cycle, setCycle] = useState('monthly');
   const [paymentDate, setPaymentDate] = useState(null);
   const [categoryId, setCategoryId] = useState('');
@@ -55,7 +57,7 @@ function SubscriptionForm({
     } else {
       setName('');
       setCost('');
-      setCurrency('RUB');
+      setCurrency(defaultCurrency);
       setCycle('monthly');
       setPaymentDate(null);
       setNotificationsEnabled(false);
@@ -70,7 +72,7 @@ function SubscriptionForm({
         setCategoryId(defaultCategory.id);
       }
     }
-  }, [isEditMode, initialData, selectedCategory, categories]);
+  }, [isEditMode, initialData, selectedCategory, categories, defaultCurrency]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -206,10 +208,9 @@ function SubscriptionForm({
             onChange={(e) => setCurrency(e.target.value)} 
             className={inputBaseClass}
           >
-            <option value="RUB">RUB</option>
-            <option value="USD">USD</option>
-            <option value="EUR">EUR</option>
-            <option value="RSD">RSD</option>
+            {CURRENCY_OPTIONS.map(option => (
+              <option key={option.value} value={option.value}>{option.value}</option>
+            ))}
           </select>
         </div>
       </div>

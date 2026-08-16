@@ -10,7 +10,7 @@ import {
   SubscriptionDetails
 } from './features/subscriptions';
 import { ExportData } from './features/telegram';
-import { Modal, TotalExpenses } from './shared';
+import { Modal, TotalExpenses, CategorySkeleton, TotalExpensesSkeleton } from './shared';
 import { SettingsModal } from './features/settings';
 import { LoginPage, UserMenu } from './shared';
 import { useToast } from './features/notifications';
@@ -18,6 +18,8 @@ import { Cog6ToothIcon, PlusIcon, TagIcon, SunIcon, MoonIcon } from '@heroicons/
 import { useCurrencyRates, useTheme } from './features/settings/hooks';
 import { useSubscriptions, useSubscriptionFilters } from './features/subscriptions/hooks';
 import { getMonthlyCost } from './shared/utils/cycle';
+import { DEFAULT_CURRENCY } from './shared/utils/currency';
+import { useLocalStorage } from './shared/hooks';
 import { useCategories } from './features/categories/hooks/useCategories';
 import CategoryForm from './features/categories/CategoryForm';
 import CategorySection from './features/categories/CategorySection';
@@ -61,6 +63,9 @@ function AppContent() {
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
   const [baseCurrency, setBaseCurrency] = React.useState(localStorage.getItem('baseCurrency') || 'RUB');
   const [searchQuery, setSearchQuery] = React.useState('');
+  // Валюта, которая подставляется в форму новой подписки. От baseCurrency
+  // отличается тем, что не влияет на отображение сумм.
+  const [defaultCurrency, setDefaultCurrency] = useLocalStorage('defaultCurrency', DEFAULT_CURRENCY);
   const [detailsSubscription, setDetailsSubscription] = React.useState(null);
   // Выбранный вид переживает перезагрузку страницы
   const [viewMode, setViewMode] = React.useState(() => localStorage.getItem('viewMode') || 'categories');
@@ -406,6 +411,8 @@ function AppContent() {
             </div>
 
           {/* Общая статистика */}
+          {(isLoadingData || isLoadingCategories) && subscriptions.length === 0 && <TotalExpensesSkeleton />}
+
           {filteredSubscriptions.length > 0 && (
             <TotalExpenses
               subscriptions={filteredSubscriptions}
@@ -415,6 +422,7 @@ function AppContent() {
               onCategoryClick={scrollToCategory}
               isFiltered={hasQuery}
               totalCount={subscriptions.length}
+              onSubscriptionClick={handleOpenDetails}
             />
           )}
 
@@ -427,9 +435,9 @@ function AppContent() {
             />
 
             {isLoadingCategories ? (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary mx-auto mb-4"></div>
-                <p className="text-slate-600 dark:text-slate-300">Загрузка категорий...</p>
+              <div className="space-y-6">
+                <CategorySkeleton />
+                <CategorySkeleton />
               </div>
             ) : viewMode === 'list' ? (
               <FlatSubscriptionList
@@ -541,6 +549,7 @@ function AppContent() {
             isEditMode={!!editingSubscription}
             categories={categories}
             selectedCategory={selectedCategory}
+            defaultCurrency={defaultCurrency}
           />
         )}
       </Modal>
@@ -574,6 +583,8 @@ function AppContent() {
         lastRatesUpdate={lastRatesUpdate}
         baseCurrency={baseCurrency}
         setBaseCurrency={setBaseCurrency}
+        defaultCurrency={defaultCurrency}
+        setDefaultCurrency={setDefaultCurrency}
       />
     </div>
   );

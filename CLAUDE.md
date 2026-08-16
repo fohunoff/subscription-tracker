@@ -250,6 +250,16 @@ When adding API-dependent features:
 - Token expiration checked on mount (jwtDecode)
 - Failed auth clears localStorage and redirects to LoginPage
 
+### Валюты и заглушки загрузки
+
+Список валют — `src/shared/utils/currency.js` (коды должны совпадать с enum в
+`server/models/Subscription.js`). Настройки различают две валюты: `baseCurrency` —
+в чём показывать итоги, `defaultCurrency` — что подставить в форму новой подписки;
+обе живут в localStorage.
+
+Скелетоны вместо спиннеров — `src/shared/components/Skeleton.jsx`
+(`SubscriptionListSkeleton`, `CategorySkeleton`, `TotalExpensesSkeleton`).
+
 ### Styling Approach
 - TailwindCSS with custom brand colors (brand-primary, brand-secondary, brand-danger)
 - Dark mode support via 'class' strategy (check tailwind.config.js)

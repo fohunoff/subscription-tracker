@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { formatCurrency } from '../utils';
-import { getMonthlyCost } from '../utils/cycle';
+import { getMonthlyCost, getNextPaymentDate } from '../utils/cycle';
 
 const TotalExpenses = ({
   subscriptions,
@@ -11,7 +11,8 @@ const TotalExpenses = ({
   // При активном поиске блок показывает сумму по найденному, а не по всем
   // подпискам — иначе цифра не соответствовала бы тому, что видно на экране.
   isFiltered = false,
-  totalCount = null
+  totalCount = null,
+  onSubscriptionClick
 }) => {
   // Группируем расходы по категориям
   const categoryExpenses = useMemo(() => {
@@ -55,6 +56,27 @@ const TotalExpenses = ({
     }));
   }, [categoryExpenses, totalMonthlyCost]);
 
+  // Ближайший предстоящий платёж — самая полезная строка в этом блоке:
+  // отвечает на вопрос «что списывается следующим».
+  const nextPayment = useMemo(() => {
+    let best = null;
+
+    subscriptions.forEach(sub => {
+      const date = getNextPaymentDate(sub);
+      if (!date) return;
+      if (!best || date < best.date) {
+        const categoryId = sub.categoryId?._id || sub.categoryId?.id || sub.categoryId;
+        best = {
+          date,
+          subscription: sub,
+          category: categories.find(cat => cat.id === categoryId || cat._id === categoryId)
+        };
+      }
+    });
+
+    return best;
+  }, [subscriptions, categories]);
+
   const handleCategoryClick = (categoryId) => {
     if (onCategoryClick) {
       onCategoryClick(categoryId);
@@ -75,6 +97,36 @@ const TotalExpenses = ({
             ? `Найдено подписок: ${subscriptions.length} из ${totalCount}`
             : `Всего подписок: ${subscriptions.length}`}
         </p>
+
+        {nextPayment && (
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Ближайшая:{' '}
+            <button
+              type="button"
+              onClick={() => onSubscriptionClick?.(nextPayment.subscription)}
+              className="font-medium text-slate-700 dark:text-slate-200 hover:text-brand-primary dark:hover:text-brand-primary underline decoration-dotted underline-offset-2 transition-colors"
+              title="Открыть детали подписки"
+            >
+              {nextPayment.subscription.name}
+            </button>
+            {nextPayment.category && (
+              <>
+                {' ('}
+                <button
+                  type="button"
+                  onClick={() => handleCategoryClick(nextPayment.category.id || nextPayment.category._id)}
+                  className="hover:text-brand-primary transition-colors underline decoration-dotted underline-offset-2"
+                  title="Перейти к категории"
+                >
+                  {nextPayment.category.name}
+                </button>
+                {')'}
+              </>
+            )}
+            {' — '}
+            {nextPayment.date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
+          </p>
+        )}
       </div>
 
       {categoriesWithPercentage.length > 0 && (

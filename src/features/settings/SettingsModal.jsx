@@ -4,6 +4,7 @@ import { formatDate } from '../../shared/utils';
 import TelegramConnection from './TelegramConnection';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../notifications';
+import { CURRENCY_OPTIONS } from '../../shared/utils/currency';
 
 const SettingsModal = ({
   isOpen,
@@ -12,7 +13,9 @@ const SettingsModal = ({
   isRatesLoading,
   lastRatesUpdate,
   baseCurrency,
-  setBaseCurrency
+  setBaseCurrency,
+  defaultCurrency,
+  setDefaultCurrency
 }) => {
   const { api, user } = useAuth();
   const { showToast } = useToast();
@@ -80,12 +83,29 @@ const SettingsModal = ({
           onChange={e => setBaseCurrency(e.target.value)}
           className="block w-full max-w-xs rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 p-2 shadow-sm focus:border-brand-primary focus:outline-none focus:ring focus:ring-brand-primary focus:ring-opacity-90"
         >
-          <option value="RUB">RUB (₽)</option>
-          <option value="USD">USD ($)</option>
-          <option value="EUR">EUR (€)</option>
-          <option value="RSD">RSD (дин.)</option>
+          {CURRENCY_OPTIONS.map(option => (
+            <option key={option.value} value={option.value}>{option.label}</option>
+          ))}
         </select>
         <div className="mt-1 text-xs text-slate-400 dark:text-slate-500">Итоговая сумма будет показана в выбранной валюте</div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">
+          Валюта по умолчанию для новых подписок
+        </label>
+        <select
+          value={defaultCurrency}
+          onChange={e => setDefaultCurrency(e.target.value)}
+          className="block w-full max-w-xs rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 p-2 shadow-sm focus:border-brand-primary focus:outline-none focus:ring focus:ring-brand-primary focus:ring-opacity-90"
+        >
+          {CURRENCY_OPTIONS.map(option => (
+            <option key={option.value} value={option.value}>{option.label}</option>
+          ))}
+        </select>
+        <div className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+          Подставляется в форму при добавлении подписки — на уже созданные не влияет
+        </div>
       </div>
 
       {/* Telegram уведомления */}

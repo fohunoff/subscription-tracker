@@ -7,6 +7,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { formatCurrency } from '../../shared/utils';
 import { getCycleMeta } from '../../shared/utils/cycle';
+import { SubscriptionListSkeleton } from '../../shared';
 
 /**
  * Завершённые подписки. Живут отдельно от категорий и не участвуют
@@ -77,10 +78,7 @@ function ArchivedSubscriptions({
       {expanded && (
         <div className="mt-6">
           {isLoading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary mx-auto mb-4"></div>
-              <p className="text-slate-600 dark:text-slate-300">Загрузка архива...</p>
-            </div>
+            <SubscriptionListSkeleton count={2} />
           ) : archivedSubscriptions.length === 0 ? (
             <p className="text-slate-500 dark:text-slate-400 text-center py-8">
               {hasQuery
