@@ -1,7 +1,13 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { SubscriptionForm, SubscriptionList, ArchivedSubscriptions } from './features/subscriptions';
+import {
+  SubscriptionForm,
+  SubscriptionList,
+  ArchivedSubscriptions,
+  FlatSubscriptionList,
+  SubscriptionsToolbar
+} from './features/subscriptions';
 import { ExportData } from './features/telegram';
 import { Modal, TotalExpenses } from './shared';
 import { SettingsModal } from './features/settings';
@@ -9,7 +15,7 @@ import { LoginPage, UserMenu } from './shared';
 import { useToast } from './features/notifications';
 import { Cog6ToothIcon, PlusIcon, TagIcon, SunIcon, MoonIcon } from '@heroicons/react/24/solid';
 import { useCurrencyRates, useTheme } from './features/settings/hooks';
-import { useSubscriptions } from './features/subscriptions/hooks';
+import { useSubscriptions, useSubscriptionFilters } from './features/subscriptions/hooks';
 import { getMonthlyCost } from './shared/utils/cycle';
 import { useCategories } from './features/categories/hooks/useCategories';
 import CategoryForm from './features/categories/CategoryForm';
@@ -53,6 +59,9 @@ function AppContent() {
   const [selectedCategory, setSelectedCategory] = React.useState(null);
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
   const [baseCurrency, setBaseCurrency] = React.useState(localStorage.getItem('baseCurrency') || 'RUB');
+  const [searchQuery, setSearchQuery] = React.useState('');
+  // Выбранный вид переживает перезагрузку страницы
+  const [viewMode, setViewMode] = React.useState(() => localStorage.getItem('viewMode') || 'categories');
   const [theme, setTheme] = useTheme('light');
   // const [isSubsOpen, setIsSubsOpen] = React.useState(true);
 
@@ -73,6 +82,10 @@ function AppContent() {
     localStorage.setItem('baseCurrency', baseCurrency);
   }, [baseCurrency]);
 
+  useEffect(() => {
+    localStorage.setItem('viewMode', viewMode);
+  }, [viewMode]);
+
   // Обработчик toast событий
   useEffect(() => {
     function handleToastEvent(e) {
@@ -83,22 +96,32 @@ function AppContent() {
   }, [showToast]);
 
   // ✅ ВСЕ useMemo ХУКИ
+  // Поиск и группировка: и то и другое зависит от запроса, поэтому живёт в хуке.
+  // Объявляется раньше сумм — они считаются по найденному.
+  const {
+    filteredSubscriptions,
+    filteredArchived,
+    flatSubscriptions,
+    categoriesWithSubscriptions,
+    hasQuery,
+    totalFound
+  } = useSubscriptionFilters({
+    subscriptions,
+    archivedSubscriptions,
+    categories,
+    searchQuery
+  });
+
+  // Сумма считается по отфильтрованным подпискам: при активном поиске блок
+  // расходов показывает то, что видно на экране, а не общий итог.
   const totalMonthlyCost = useMemo(() => {
-    const totalRub = subscriptions.reduce((total, sub) => {
+    const totalRub = filteredSubscriptions.reduce((total, sub) => {
       const rate = currencyRates[sub.currency] || 1;
       return total + getMonthlyCost(sub) * rate;
     }, 0);
     const rateToBase = currencyRates[baseCurrency] || 1;
     return totalRub / rateToBase;
-  }, [subscriptions, currencyRates, baseCurrency]);
-
-  // Группируем подписки по категориям
-  const categoriesWithSubscriptions = useMemo(() => {
-    return categories.map(category => ({
-      ...category,
-      subscriptions: subscriptions.filter(sub => sub.categoryId === category.id)
-    }));
-  }, [categories, subscriptions]);
+  }, [filteredSubscriptions, currencyRates, baseCurrency]);
 
   // ✅ ФУНКЦИИ (НЕ ХУКИ)
   const openAddSubscriptionModal = (category = null) => {
@@ -358,21 +381,40 @@ function AppContent() {
             </div>
 
           {/* Общая статистика */}
-          {subscriptions.length > 0 && (
+          {filteredSubscriptions.length > 0 && (
             <TotalExpenses
-              subscriptions={subscriptions}
+              subscriptions={filteredSubscriptions}
               categories={categories}
               totalMonthlyCost={totalMonthlyCost}
               baseCurrency={baseCurrency}
               onCategoryClick={scrollToCategory}
+              isFiltered={hasQuery}
+              totalCount={subscriptions.length}
             />
           )}
+
+            <SubscriptionsToolbar
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              viewMode={viewMode}
+              onViewModeChange={setViewMode}
+              foundCount={totalFound}
+            />
 
             {isLoadingCategories ? (
               <div className="text-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary mx-auto mb-4"></div>
                 <p className="text-slate-600 dark:text-slate-300">Загрузка категорий...</p>
               </div>
+            ) : viewMode === 'list' ? (
+              <FlatSubscriptionList
+                subscriptions={flatSubscriptions}
+                categories={categories}
+                onDeleteSubscription={handleDeleteSubscription}
+                onEditSubscription={handleOpenEditModal}
+                onArchiveSubscription={handleArchiveSubscription}
+                emptyMessage={hasQuery ? 'Ничего не найдено.' : 'Список подписок пуст.'}
+              />
             ) : (
               <div className="space-y-6">
                 {categoriesWithSubscriptions.map((category) => (
@@ -394,11 +436,20 @@ function AppContent() {
                   />
                 ))}
                 
-                {categories.length === 0 && (
+                {categoriesWithSubscriptions.length === 0 && (
                   <div className="text-center py-12 px-6 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg">
                     <TagIcon className="w-16 h-16 mx-auto text-slate-400 mb-4" />
-                    <p className="text-xl font-medium text-slate-600 dark:text-slate-300">Категории не созданы.</p>
-                    <p className="text-slate-500 dark:text-slate-400 mt-1">Добавьте первую категорию для организации подписок.</p>
+                    {hasQuery ? (
+                      <>
+                        <p className="text-xl font-medium text-slate-600 dark:text-slate-300">Ничего не найдено.</p>
+                        <p className="text-slate-500 dark:text-slate-400 mt-1">Попробуйте изменить запрос — поиск идёт по названию подписки и категории.</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-xl font-medium text-slate-600 dark:text-slate-300">Категории не созданы.</p>
+                        <p className="text-slate-500 dark:text-slate-400 mt-1">Добавьте первую категорию для организации подписок.</p>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -407,8 +458,10 @@ function AppContent() {
           
           {/* Завершённые подписки */}
           <ArchivedSubscriptions
-            archivedSubscriptions={archivedSubscriptions}
+            archivedSubscriptions={filteredArchived}
             isLoading={isLoadingArchive}
+            searchQuery={searchQuery}
+            matchCount={filteredArchived.length}
             onLoad={loadArchivedSubscriptions}
             onRestore={restoreSubscription}
             onDelete={handleDeleteArchivedSubscription}

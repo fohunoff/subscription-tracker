@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ArchiveBoxIcon,
   ArrowUturnLeftIcon,
@@ -18,10 +18,26 @@ function ArchivedSubscriptions({
   isLoading,
   onLoad,
   onRestore,
-  onDelete
+  onDelete,
+  searchQuery = '',
+  matchCount = 0
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
+
+  const hasQuery = Boolean(searchQuery.trim());
+
+  // Поиск охватывает и архив, поэтому при вводе запроса подгружаем его,
+  // даже если раздел ни разу не открывали.
+  useEffect(() => {
+    if (hasQuery && !hasLoaded) {
+      setHasLoaded(true);
+      onLoad();
+    }
+  }, [hasQuery, hasLoaded, onLoad]);
+
+  // При активном поиске раздел раскрыт, если в нём есть совпадения
+  const expanded = hasQuery ? matchCount > 0 : isExpanded;
 
   // Архив грузим только когда его действительно открывают
   const toggle = () => {
@@ -42,7 +58,7 @@ function ArchivedSubscriptions({
         type="button"
         onClick={toggle}
         className="w-full flex items-center justify-between text-left"
-        aria-expanded={isExpanded}
+        aria-expanded={expanded}
       >
         <h2 id="archive-heading" className="text-2xl font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-2">
           <ArchiveBoxIcon className="h-6 w-6 text-slate-400" />
@@ -54,11 +70,11 @@ function ArchivedSubscriptions({
           )}
         </h2>
         <ChevronDownIcon
-          className={`h-6 w-6 text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+          className={`h-6 w-6 text-slate-400 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
         />
       </button>
 
-      {isExpanded && (
+      {expanded && (
         <div className="mt-6">
           {isLoading ? (
             <div className="text-center py-8">
@@ -67,7 +83,9 @@ function ArchivedSubscriptions({
             </div>
           ) : archivedSubscriptions.length === 0 ? (
             <p className="text-slate-500 dark:text-slate-400 text-center py-8">
-              Архив пуст. Завершённые подписки попадут сюда и сохранят все настройки.
+              {hasQuery
+                ? 'В архиве ничего не найдено.'
+                : 'Архив пуст. Завершённые подписки попадут сюда и сохранят все настройки.'}
             </p>
           ) : (
             <ul className="space-y-3">

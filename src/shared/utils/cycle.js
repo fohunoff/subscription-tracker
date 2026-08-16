@@ -27,3 +27,32 @@ export const getMonthlyCost = (subscription) =>
  * Совпадает с проверкой на сервере (server/utils/index.js).
  */
 export const cycleRequiresFullDate = (cycle) => cycle === 'quarterly';
+
+/**
+ * Дата ближайшего будущего платежа. Зеркало server/utils/cycle.js.
+ *
+ * Если полной даты нет (старые ежемесячные подписки), считаем от дня месяца:
+ * ближайшее его наступление начиная с сегодняшнего дня.
+ */
+export const getNextPaymentDate = (subscription) => {
+  const { months } = getCycleMeta(subscription.cycle);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (!subscription.fullPaymentDate) {
+    if (!subscription.paymentDay) return null;
+
+    const candidate = new Date(today.getFullYear(), today.getMonth(), subscription.paymentDay);
+    if (candidate < today) {
+      candidate.setMonth(candidate.getMonth() + 1);
+    }
+    return candidate;
+  }
+
+  const nextDate = new Date(subscription.fullPaymentDate);
+  nextDate.setHours(0, 0, 0, 0);
+  while (nextDate < today) {
+    nextDate.setMonth(nextDate.getMonth() + months);
+  }
+  return nextDate;
+};

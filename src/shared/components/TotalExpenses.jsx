@@ -7,7 +7,11 @@ const TotalExpenses = ({
   categories,
   totalMonthlyCost,
   baseCurrency,
-  onCategoryClick
+  onCategoryClick,
+  // При активном поиске блок показывает сумму по найденному, а не по всем
+  // подпискам — иначе цифра не соответствовала бы тому, что видно на экране.
+  isFiltered = false,
+  totalCount = null
 }) => {
   // Группируем расходы по категориям
   const categoryExpenses = useMemo(() => {
@@ -61,13 +65,15 @@ const TotalExpenses = ({
     <section className="bg-white dark:bg-slate-800 rounded-xl p-6 md:p-8 mb-6">
       <div className="text-center mb-6">
         <h2 className="text-xl font-semibold text-slate-700 dark:text-slate-200 mb-2">
-          Средний расход в месяц
+          {isFiltered ? 'Расход в месяц по найденному' : 'Средний расход в месяц'}
         </h2>
         <p className="text-4xl font-bold text-brand-primary mb-2">
           {formatCurrency(totalMonthlyCost, baseCurrency)}
         </p>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          Всего подписок: {subscriptions.length}
+          {isFiltered && totalCount !== null
+            ? `Найдено подписок: ${subscriptions.length} из ${totalCount}`
+            : `Всего подписок: ${subscriptions.length}`}
         </p>
       </div>
 

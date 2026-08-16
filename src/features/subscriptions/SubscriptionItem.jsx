@@ -12,7 +12,12 @@ const CURRENCY_SYMBOLS = {
 };
 
 
-function SubscriptionItem({ subscription, onDeleteSubscription, onEditSubscription, onArchiveSubscription }) {
+// as: тег обёртки. В списке внутри <ul> это <li>, а в сплошном списке карточка
+// вкладывается в собственный <li> вместе с подписью даты — там нужен <div>.
+// Wrapper используется как JSX-тег ниже, но без eslint-plugin-react линтер
+// этого не видит — отсюда отключение правила.
+// eslint-disable-next-line no-unused-vars
+function SubscriptionItem({ subscription, onDeleteSubscription, onEditSubscription, onArchiveSubscription, as: Wrapper = 'li' }) {
   const cycleMeta = getCycleMeta(subscription.cycle);
   const cycleText = cycleMeta.shortLabel;
   // Для ежемесячных достаточно дня месяца, остальным нужна дата: по ней видно,
@@ -20,7 +25,7 @@ function SubscriptionItem({ subscription, onDeleteSubscription, onEditSubscripti
   const isMonthly = subscription.cycle === 'monthly';
 
   return (
-    <li className="bg-slate-50 hover:bg-slate-100 p-4 rounded-lg shadow-sm border border-slate-200 transition-all duration-150 ease-in-out flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0 sm:space-x-4">
+    <Wrapper className="bg-slate-50 hover:bg-slate-100 p-4 rounded-lg shadow-sm border border-slate-200 transition-all duration-150 ease-in-out flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0 sm:space-x-4">
       <div className="flex-1 min-w-0">
         <h3 className="text-lg font-semibold text-slate-800 truncate" title={subscription.name}>
           {subscription.name}
@@ -97,7 +102,7 @@ function SubscriptionItem({ subscription, onDeleteSubscription, onEditSubscripti
           <TrashIcon className="h-5 w-5" />
         </button>
       </div>
-    </li>
+    </Wrapper>
   );
 }
 
