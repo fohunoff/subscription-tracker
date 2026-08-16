@@ -148,6 +148,23 @@ pm2 logs subscription-tracker-api
 `deploy.sh` использует `npm ci` и запускает установку только при изменении lock-файла,
 поэтому проблема не повторяется.
 
+> ⚠️ **`server/package-lock.json` должен генерироваться npm той же мажорной версии,
+> что стоит на сервере (сейчас npm 10, Node 22).** Пакет `mongodb` (внутри mongoose)
+> объявляет опциональную peer-зависимость `gcp-metadata@^5.2.0`. npm 11 её игнорирует
+> и не пишет в lock, а npm 10 требует — и падает с `EUSAGE: Missing: gcp-metadata@5.3.0
+> from lock file`, то есть **`npm ci` на сервере перестаёт работать вовсе**.
+>
+> Если локально стоит npm 11, обновляйте lock так:
+>
+> ```bash
+> cd server
+> npx -y npm@10 install --package-lock-only
+> ```
+>
+> Полученный lock принимают обе версии — это проверено. Признак проблемы: после
+> обычного `npm install` из `server/package-lock.json` пропадают записи
+> `node_modules/mongoose/node_modules/{gcp-metadata,gaxios,https-proxy-agent,agent-base,debug}`.
+
 Первый запуск:
 
 ```bash

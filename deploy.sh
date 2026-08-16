@@ -16,7 +16,9 @@
 #   5. pm2 restart — только если менялся серверный код
 #   6. health-check; при неудаче — автоматический откат кода и статики
 #
-set -euo pipefail
+# -E (errtrace) обязателен: без него ловушка ERR не наследуется функциями и
+# подоболочками, и падение npm ci внутри ( cd ... ) прошло бы мимо отката.
+set -Eeuo pipefail
 
 # ── Настройки ────────────────────────────────────────────────────────────────
 # Каталог статики намеренно оканчивается на .ru, хотя домен .com: папку не
@@ -158,7 +160,67 @@ else
   warn "Бэкап пропущен (--no-backup)"
 fi
 
+# ── Откат ────────────────────────────────────────────────────────────────────
+health_ok() {
+  curl -fsS -m 5 "http://127.0.0.1:$PORT/api/health" >/dev/null 2>&1
+}
+
+restart_backend() {
+  # Пропуск npm ci при изменившихся зависимостях роняет процесс целиком
+  # (ERR_MODULE_NOT_FOUND → 502 на весь /api/), поэтому ставим до рестарта.
+  ( cd "$SERVER_DIR" && npm ci --omit=dev ) || warn "npm ci при откате не прошёл"
+  pm2 restart "$PM2_APP" --update-env || warn "pm2 restart при откате не прошёл"
+}
+
+ROLLBACK_DONE=false
+
+rollback() {
+  $ROLLBACK_DONE && return 0
+  ROLLBACK_DONE=true
+
+  # Откат кода
+  git reset --hard "$PREVIOUS_COMMIT" >/dev/null 2>&1 || true
+  info "Код возвращён на $(git rev-parse --short "$PREVIOUS_COMMIT")"
+
+  # Откат статики: она может быть уже перезаписана новой сборкой
+  if [ -f "$STATIC_BACKUP" ]; then
+    sudo rm -rf "${STATIC_DIR:?}/"*
+    sudo tar -xzf "$STATIC_BACKUP" -C "$STATIC_DIR"
+    sudo chown -R "$(id -un):$(id -gn)" "$STATIC_DIR"
+    info "Статика восстановлена из $STATIC_BACKUP"
+  else
+    warn "Бэкапа статики нет — фронт остался от неудачного деплоя"
+  fi
+
+  restart_backend
+
+  if command -v curl >/dev/null 2>&1 && health_ok; then
+    fail "Откат выполнен, приложение работает на прежней версии"
+  else
+    fail "Откат выполнен, но API не отвечает — смотрите: pm2 logs $PM2_APP"
+  fi
+
+  # База: миграции автоматически не откатываются
+  if $RUN_MIGRATIONS && $DO_BACKUP; then
+    warn "Выполнялись миграции. Если проблема в данных, восстановите базу вручную:"
+    warn "  mongorestore --uri <MONGODB_URI> --drop $BACKUP_DIR/mongo_$TIMESTAMP"
+  fi
+}
+
+# Любая ошибка после этого места (упавший npm ci, неудачная сборка, сорвавшееся
+# копирование) оставила бы прод в полуобновлённом виде — откатываемся.
+on_error() {
+  local code=$?
+  fail "Шаг деплоя завершился с ошибкой (код $code) — откатываюсь"
+  rollback
+  exit "$code"
+}
+
 # ── Обновление кода ──────────────────────────────────────────────────────────
+# С этого момента скрипт меняет состояние сервера, поэтому любая ошибка должна
+# приводить к откату, а не к выходу на середине.
+$DRY_RUN || trap on_error ERR
+
 step "Обновление кода"
 BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 run git pull --ff-only origin "$BRANCH"
@@ -209,12 +271,6 @@ else
 fi
 
 # ── Бэкенд ───────────────────────────────────────────────────────────────────
-restart_backend() {
-  # Пропуск npm ci при изменившихся зависимостях роняет процесс целиком
-  # (ERR_MODULE_NOT_FOUND → 502 на весь /api/), поэтому ставим до рестарта.
-  ( cd "$SERVER_DIR" && run npm ci --omit=dev )
-  run pm2 restart "$PM2_APP" --update-env
-}
 
 if $SERVER_CHANGED; then
   step "Бэкенд"
@@ -246,10 +302,6 @@ else
 fi
 
 # ── Health-check ─────────────────────────────────────────────────────────────
-health_ok() {
-  curl -fsS -m 5 "http://127.0.0.1:$PORT/api/health" >/dev/null 2>&1
-}
-
 step "Проверка работоспособности"
 
 if $DRY_RUN; then
@@ -268,36 +320,9 @@ else
   done
 
   if ! $HEALTHY; then
+    trap - ERR   # откатываемся сами, повторный вызов из ловушки не нужен
     fail "API не отвечает после $HEALTH_RETRIES попыток — откатываюсь"
-
-    # Откат кода
-    git reset --hard "$PREVIOUS_COMMIT"
-    info "Код возвращён на $(git rev-parse --short "$PREVIOUS_COMMIT")"
-
-    # Откат статики: она уже перезаписана новой сборкой
-    if [ -f "$STATIC_BACKUP" ]; then
-      sudo rm -rf "${STATIC_DIR:?}/"*
-      sudo tar -xzf "$STATIC_BACKUP" -C "$STATIC_DIR"
-      sudo chown -R "$(id -un):$(id -gn)" "$STATIC_DIR"
-      info "Статика восстановлена из $STATIC_BACKUP"
-    else
-      warn "Бэкапа статики нет — фронт остался от неудачного деплоя"
-    fi
-
-    restart_backend || true
-
-    if health_ok; then
-      fail "Откат выполнен, приложение работает на прежней версии"
-    else
-      fail "Откат выполнен, но API всё ещё не отвечает — смотрите: pm2 logs $PM2_APP"
-    fi
-
-    # База: миграции автоматически не откатываются
-    if $RUN_MIGRATIONS && $DO_BACKUP; then
-      warn "Выполнялись миграции. Если проблема в данных, восстановите базу вручную:"
-      warn "  mongorestore --uri <MONGODB_URI> --drop $BACKUP_DIR/mongo_$TIMESTAMP"
-    fi
-
+    rollback
     exit 1
   fi
 fi
