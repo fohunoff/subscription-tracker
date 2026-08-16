@@ -68,6 +68,8 @@ usage() {
 }
 
 # ── Аргументы ────────────────────────────────────────────────────────────────
+ORIGINAL_ARGS=("$@")
+
 while [ $# -gt 0 ]; do
   case "$1" in
     --dry-run)   DRY_RUN=true ;;
@@ -81,6 +83,9 @@ while [ $# -gt 0 ]; do
 done
 
 cd "$REPO_DIR"
+
+# Служебные переменные для перезапуска самого себя (см. ниже про обновление deploy.sh)
+DEPLOY_REEXEC="${DEPLOY_REEXEC:-0}"
 
 # ── Проверки окружения ───────────────────────────────────────────────────────
 step "Проверка окружения"
@@ -112,7 +117,7 @@ ok "Статика:     $STATIC_DIR"
 ok "Бэкенд:      127.0.0.1:$PORT (pm2: $PM2_APP)"
 $DRY_RUN && warn "Режим dry-run: изменения не выполняются"
 
-PREVIOUS_COMMIT="$(git rev-parse HEAD)"
+PREVIOUS_COMMIT="${DEPLOY_PREV_COMMIT:-$(git rev-parse HEAD)}"
 
 # Что реально выкачено на сервер. Сравнивать дифф с PREVIOUS_COMMIT недостаточно:
 # если предыдущий деплой был частичным (или ручным), статика может отставать от кода,
@@ -121,7 +126,10 @@ STATE_FILE="$BACKUP_DIR/last-deployed-commit"
 DEPLOYED_COMMIT=""
 [ -f "$STATE_FILE" ] && DEPLOYED_COMMIT="$(cat "$STATE_FILE")"
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
-STATIC_BACKUP="$BACKUP_DIR/static_$TIMESTAMP.tar.gz"
+STATIC_BACKUP="${DEPLOY_STATIC_BACKUP:-$BACKUP_DIR/static_$TIMESTAMP.tar.gz}"
+
+# После перезапуска бэкап уже сделан прошлым процессом — второй раз не нужен
+[ "$DEPLOY_REEXEC" = "1" ] && DO_BACKUP=false
 
 # ── Бэкапы ───────────────────────────────────────────────────────────────────
 if $DO_BACKUP; then
@@ -233,7 +241,26 @@ $DRY_RUN || trap on_error ERR
 
 step "Обновление кода"
 BRANCH="$(git rev-parse --abbrev-ref HEAD)"
-run git pull --ff-only origin "$BRANCH"
+
+if [ "$DEPLOY_REEXEC" = "1" ]; then
+  info "Код уже обновлён до перезапуска скрипта"
+else
+  # bash читает файл по мере выполнения, поэтому git pull, обновивший deploy.sh,
+  # заставил бы текущий процесс доигрывать смесь старой и новой версии.
+  SCRIPT_BEFORE="$(git rev-parse "HEAD:$(basename "${BASH_SOURCE[0]}")" 2>/dev/null || echo none)"
+
+  run git pull --ff-only origin "$BRANCH"
+
+  SCRIPT_AFTER="$(git rev-parse "HEAD:$(basename "${BASH_SOURCE[0]}")" 2>/dev/null || echo none)"
+  if ! $DRY_RUN && [ "$SCRIPT_BEFORE" != "$SCRIPT_AFTER" ]; then
+    warn "deploy.sh обновился — перезапускаюсь на новой версии"
+    trap - ERR
+    DEPLOY_REEXEC=1 \
+    DEPLOY_PREV_COMMIT="$PREVIOUS_COMMIT" \
+    DEPLOY_STATIC_BACKUP="$STATIC_BACKUP" \
+      exec bash "${BASH_SOURCE[0]}" ${ORIGINAL_ARGS[@]+"${ORIGINAL_ARGS[@]}"}
+  fi
+fi
 
 NEW_COMMIT="$(git rev-parse HEAD)"
 if [ "$PREVIOUS_COMMIT" = "$NEW_COMMIT" ] && ! $DRY_RUN; then
