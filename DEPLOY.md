@@ -76,10 +76,25 @@ sudo chown -R fohunoff:fohunoff /var/www/fohunoff/data/www/tracker.fohunoff.ru
 ```bash
 cd /home/fohunoff/repos/subscription-tracker/server
 git pull origin main
-npm install --production
+npm install --production          # не пропускать, см. предупреждение ниже
 pm2 restart subscription-tracker-api --update-env
 pm2 logs subscription-tracker-api
 ```
+
+> ⚠️ **`npm install --production` пропускать нельзя, если в коммите менялись
+> зависимости.** Отказ будет не мягким: Node не найдёт пакет при импорте, процесс
+> упадёт с `ERR_MODULE_NOT_FOUND`, PM2 будет перезапускать его по кругу, а Nginx —
+> отдавать **502 на все запросы к `/api/`**. Фронт при этом продолжает открываться
+> (статика отдаётся отдельно), поэтому по внешнему виду сайта поломку легко не заметить.
+>
+> Так уже случилось при выкатке helmet и express-rate-limit: `git pull` + `pm2 restart`
+> без установки зависимостей положили API примерно на минуту.
+>
+> Дешевле всего выполнять `npm install --production` при каждом деплое бэкенда —
+> если зависимости не менялись, команда отработает вхолостую за секунду.
+>
+> Быстрый откат, если установка почему-то не проходит:
+> `git revert --no-edit <коммит> && pm2 restart subscription-tracker-api --update-env`
 
 Первый запуск:
 
@@ -158,8 +173,20 @@ nginx -t && tail -f /var/log/nginx/error.log
 systemctl status mongod
 ```
 
+Быстрая внешняя проверка, что запущена актуальная версия (можно с любой машины):
+
+```bash
+curl -sI https://tracker.fohunoff.com/api/health | grep -iE "x-powered-by|x-content-type|x-frame"
+# ожидается: nosniff и SAMEORIGIN, X-Powered-By отсутствует (его снимает helmet)
+
+curl -s -o /dev/null -w "%{http_code}\n" -H "Origin: https://evil.example.com" \
+  https://tracker.fohunoff.com/api/health
+# ожидается: 403
+```
+
 | Симптом | Смотреть |
 |---|---|
+| **502 на весь `/api/`, фронт при этом открывается** | В `pm2 logs` — `ERR_MODULE_NOT_FOUND`: после `git pull` забыт `npm install --production` |
 | Фронт грузится, запросы падают с CORS | `FRONTEND_URL` в `server/.env`; в логе PM2 будет `⚠️ CORS: origin ... не входит в FRONTEND_URL` |
 | Кнопка входа Google не работает | Authorized JavaScript origins в Google Cloud Console |
 | Запросы уходят на localhost | Фронт собран без `VITE_API_URL=/api` |
