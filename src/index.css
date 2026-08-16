@@ -1,0 +1,93 @@
+/* src/index.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-slate-100 dark:bg-slate-900 text-brand-dark dark:text-slate-200 antialiased;
+}
+
+/* Кастомная анимация для модального окна */
+@layer utilities {
+  @keyframes modalShow {
+    0% {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  .animate-modalShow {
+    animation: modalShow 0.3s ease-out forwards;
+  }
+  @keyframes toastIn {
+    0% {
+      opacity: 0;
+      transform: translateX(40px) scale(0.95);
+    }
+    60% {
+      opacity: 1;
+      transform: translateX(-8px) scale(1.03);
+    }
+    80% {
+      transform: translateX(0px) scale(0.98);
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(0) scale(1);
+    }
+  }
+  @keyframes toastOut {
+    0% {
+      opacity: 1;
+      transform: translateX(0) scale(1);
+    }
+    20% {
+      transform: translateX(-8px) scale(1.03);
+    }
+    100% {
+      opacity: 0;
+      transform: translateX(40px) scale(0.95);
+    }
+  }
+  .toast-animate {
+    animation: toastIn 0.5s cubic-bezier(.22,1.2,.36,1) both;
+  }
+  .toast-animate.toast-leave {
+    animation: toastOut 0.45s cubic-bezier(.22,1.2,.36,1) both;
+  }
+
+  /* Анимация подсветки категории при скролле */
+  @keyframes highlightPulse {
+    0% {
+      box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    }
+    25% {
+      box-shadow: 0 0 0 8px rgba(59, 130, 246, 0.4);
+    }
+    50% {
+      box-shadow: 0 0 0 12px rgba(59, 130, 246, 0.2);
+    }
+    75% {
+      box-shadow: 0 0 0 8px rgba(59, 130, 246, 0.1);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    }
+  }
+  .highlight-pulse {
+    animation: highlightPulse 1.5s ease-out;
+  }
+}
+
+/* Стили для Google OAuth кнопки в темной теме */
+.dark .google-login-container [data-testid="google-login"] {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+/* Улучшение контрастности для темной темы */
+.dark {
+  color-scheme: dark;
+}
