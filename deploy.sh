@@ -6,6 +6,7 @@
 #   ./deploy.sh --dry-run       показать план, ничего не делая
 #   ./deploy.sh --no-backup     пропустить бэкап базы
 #   ./deploy.sh --migrate       выполнить миграции из server/scripts после накатки
+#   ./deploy.sh --force         пересобрать и перезапустить всё, не сверяясь с диффом
 #   ./deploy.sh --help          справка
 #
 # Что делает:
@@ -37,6 +38,7 @@ ENV_FILE="$SERVER_DIR/.env"
 DRY_RUN=false
 DO_BACKUP=true
 RUN_MIGRATIONS=false
+FORCE_ALL=false
 
 # ── Вывод ────────────────────────────────────────────────────────────────────
 if [ -t 1 ]; then
@@ -71,6 +73,7 @@ while [ $# -gt 0 ]; do
     --dry-run)   DRY_RUN=true ;;
     --no-backup) DO_BACKUP=false ;;
     --migrate)   RUN_MIGRATIONS=true ;;
+    --force)     FORCE_ALL=true ;;
     -h|--help)   usage ;;
     *) fail "Неизвестный аргумент: $1 (см. --help)"; exit 1 ;;
   esac
@@ -110,6 +113,13 @@ ok "Бэкенд:      127.0.0.1:$PORT (pm2: $PM2_APP)"
 $DRY_RUN && warn "Режим dry-run: изменения не выполняются"
 
 PREVIOUS_COMMIT="$(git rev-parse HEAD)"
+
+# Что реально выкачено на сервер. Сравнивать дифф с PREVIOUS_COMMIT недостаточно:
+# если предыдущий деплой был частичным (или ручным), статика может отставать от кода,
+# и «фронт не менялся» окажется неправдой. Отсутствие файла = деплоим всё.
+STATE_FILE="$BACKUP_DIR/last-deployed-commit"
+DEPLOYED_COMMIT=""
+[ -f "$STATE_FILE" ] && DEPLOYED_COMMIT="$(cat "$STATE_FILE")"
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 STATIC_BACKUP="$BACKUP_DIR/static_$TIMESTAMP.tar.gz"
 
@@ -233,15 +243,27 @@ else
   ok "$(git rev-parse --short "$PREVIOUS_COMMIT") → $(git rev-parse --short "$NEW_COMMIT")"
 fi
 
-# Что изменилось между старым и новым коммитом
+# База для сравнения — последний реально задеплоенный коммит, а не предыдущий HEAD
+BASE_COMMIT="$DEPLOYED_COMMIT"
+if [ -n "$BASE_COMMIT" ] && ! git cat-file -e "$BASE_COMMIT^{commit}" 2>/dev/null; then
+  warn "Записанный коммит $BASE_COMMIT не найден в репозитории — деплою всё"
+  BASE_COMMIT=""
+fi
+
 changed() {
-  [ "$PREVIOUS_COMMIT" = "$NEW_COMMIT" ] && return 0   # нет диффа — считаем, что нужно всё
-  git diff --name-only "$PREVIOUS_COMMIT" "$NEW_COMMIT" -- "$@" | grep -q .
+  [ -z "$BASE_COMMIT" ] && return 0                    # нечего сравнивать — нужно всё
+  [ "$BASE_COMMIT" = "$NEW_COMMIT" ] && return 1        # уже выкачено
+  git diff --name-only "$BASE_COMMIT" "$NEW_COMMIT" -- "$@" | grep -q .
 }
 
 SERVER_CHANGED=true
 FRONTEND_CHANGED=true
-if [ "$PREVIOUS_COMMIT" != "$NEW_COMMIT" ]; then
+if $FORCE_ALL; then
+  info "Режим --force: пересобираю и перезапускаю всё"
+elif [ -z "$BASE_COMMIT" ]; then
+  info "Нет отметки о прошлом деплое — выкатываю всё целиком"
+else
+  info "Последний задеплоенный коммит: $(git rev-parse --short "$BASE_COMMIT")"
   changed server/ && SERVER_CHANGED=true || SERVER_CHANGED=false
   changed src/ index.html vite.config.js tailwind.config.js postcss.config.js package.json package-lock.json \
     && FRONTEND_CHANGED=true || FRONTEND_CHANGED=false
@@ -328,6 +350,13 @@ else
 fi
 
 # ── Итог ─────────────────────────────────────────────────────────────────────
+# Отметку пишем только после успешной проверки: неудачный деплой не должен
+# считаться выкаченным.
+if ! $DRY_RUN; then
+  mkdir -p "$BACKUP_DIR"
+  printf '%s\n' "$NEW_COMMIT" > "$STATE_FILE"
+fi
+
 step "Готово"
 if ! $DRY_RUN; then
   ok "Версия: $(git rev-parse --short HEAD) ($(git log -1 --pretty=%s | cut -c1-60))"
