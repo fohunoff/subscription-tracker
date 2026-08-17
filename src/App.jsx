@@ -10,6 +10,7 @@ import {
   SubscriptionDetails
 } from './features/subscriptions';
 import { ExportData } from './features/telegram';
+import { SpendingSection, useSpending } from './features/stats';
 import { Modal, TotalExpenses, CategorySkeleton, TotalExpensesSkeleton } from './shared';
 import { SettingsModal } from './features/settings';
 import { LoginPage, UserMenu } from './shared';
@@ -43,6 +44,10 @@ function AppContent() {
     restoreSubscription,
     deleteArchivedSubscription,
   } = useSubscriptions(api, showToast);
+
+  // Траты за прошедшие месяцы считаются по логу платежей на сервере
+  const { spending, isLoading: isLoadingSpending, months: spendingMonths, loadSpending } =
+    useSpending(api, showToast);
 
   const {
     categories,
@@ -497,6 +502,15 @@ function AppContent() {
             onLoad={loadArchivedSubscriptions}
             onRestore={restoreSubscription}
             onDelete={handleDeleteArchivedSubscription}
+          />
+
+          {/* Сколько уже потрачено */}
+          <SpendingSection
+            spending={spending}
+            isLoading={isLoadingSpending}
+            months={spendingMonths}
+            onLoad={loadSpending}
+            isDark={theme === 'dark'}
           />
 
           {/* Секция импорта/экспорта подписок */}

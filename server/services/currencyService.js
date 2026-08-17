@@ -128,6 +128,68 @@ export async function getLatestCurrencyRates() {
 }
 
 /**
+ * Курсы по дням для пересчёта прошлых платежей.
+ *
+ * Платёж двухлетней давности нельзя считать по сегодняшнему курсу, поэтому
+ * берётся ближайший известный на его дату. Записи пишутся раз в час — для
+ * истории трат такая точность избыточна, и на день оставляется последняя.
+ *
+ * Возвращает массив по возрастанию даты: [{ day, time, rates }].
+ */
+export async function getDailyRatesHistory() {
+  try {
+    const daily = await CurrencyRate.aggregate([
+      { $sort: { fetchedAt: 1 } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$fetchedAt' } },
+          rates: { $last: '$rates' },
+          fetchedAt: { $last: '$fetchedAt' }
+        }
+      },
+      { $sort: { fetchedAt: 1 } }
+    ]);
+
+    return daily.map(entry => ({
+      day: entry._id,
+      time: new Date(entry.fetchedAt).getTime(),
+      rates: entry.rates instanceof Map ? Object.fromEntries(entry.rates) : { ...entry.rates }
+    }));
+  } catch (error) {
+    console.error('[Currency Service] Error building rates history:', error);
+    return [];
+  }
+}
+
+/**
+ * Курсы на дату: последние известные на этот момент. До начала сбора курсов
+ * берутся самые ранние из имеющихся — другой опоры для старых платежей нет,
+ * и это честнее, чем считать их по сегодняшнему курсу.
+ */
+export function ratesAtDate(history, date, fallback = FALLBACK_RATES) {
+  if (!history || history.length === 0) return fallback;
+
+  const time = new Date(date).getTime();
+
+  // Бинарный поиск последней записи, не позже указанного момента
+  let low = 0;
+  let high = history.length - 1;
+  let found = -1;
+
+  while (low <= high) {
+    const mid = (low + high) >> 1;
+    if (history[mid].time <= time) {
+      found = mid;
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+
+  return found === -1 ? history[0].rates : history[found].rates;
+}
+
+/**
  * Инициализация: создать первую запись если БД пуста
  */
 export async function initializeCurrencyRates() {
