@@ -7,7 +7,12 @@ import {
   BellSlashIcon
 } from '@heroicons/react/24/outline';
 import { formatCurrency } from '../../shared/utils';
-import { getCycleMeta, getNextPaymentDate } from '../../shared/utils/cycle';
+import {
+  getCycleMeta,
+  getNextPaymentDate,
+  getLastPaymentDate,
+  isSubscriptionExpired
+} from '../../shared/utils/cycle';
 import { getMonthlyCostInBase } from '../../shared/utils/currency';
 import { formatHistoryEvent } from './utils/formatHistoryEvent';
 
@@ -89,6 +94,9 @@ function SubscriptionDetails({
     subscription.category?.name || categories.find(cat => cat.id === subscription.categoryId)?.name;
 
   const isArchived = subscription.status === 'archived';
+  // Срок истёк, но подписка осталась в списке — archiveOnEnd выключен
+  const isExpired = !isArchived && isSubscriptionExpired(subscription);
+  const lastPayment = getLastPaymentDate(subscription);
 
   const rowClass = 'flex items-baseline justify-between gap-4 py-2';
   const labelClass = 'text-sm text-slate-500 dark:text-slate-400';
@@ -110,6 +118,11 @@ function SubscriptionDetails({
         {isArchived && (
           <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
             в архиве
+          </span>
+        )}
+        {isExpired && (
+          <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+            срок истёк
           </span>
         )}
       </div>
@@ -155,6 +168,29 @@ function SubscriptionDetails({
           <div className={rowClass}>
             <span className={labelClass}>Завершена</span>
             <span className={valueClass}>{formatFullDate(new Date(subscription.endDate))}</span>
+          </div>
+        )}
+
+        {!isArchived && subscription.endDate && (
+          <div className={rowClass}>
+            <span className={labelClass}>{isExpired ? 'Срок истёк' : 'Действует до'}</span>
+            <span className={valueClass}>
+              {formatFullDate(new Date(subscription.endDate))}
+              <span className="block text-xs font-normal text-slate-400 dark:text-slate-500">
+                {subscription.archiveOnEnd !== false
+                  ? (isExpired ? 'уйдёт в архив при ближайшей проверке' : 'после окончания уйдёт в архив')
+                  : 'остаётся в списке после окончания'}
+              </span>
+            </span>
+          </div>
+        )}
+
+        {/* Последний платёж имеет смысл только при заданном сроке: без него
+            подписка длится бессрочно и «последнего» списания не существует */}
+        {lastPayment && !isArchived && (
+          <div className={rowClass}>
+            <span className={labelClass}>{isExpired ? 'Последний платёж' : 'Последний платёж будет'}</span>
+            <span className={valueClass}>{formatFullDate(lastPayment)}</span>
           </div>
         )}
 

@@ -24,6 +24,10 @@ function SubscriptionForm({
   const [categoryId, setCategoryId] = useState('');
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [notifyDaysBefore, setNotifyDaysBefore] = useState([]);
+  // Дата окончания необязательна: без неё подписка длится бессрочно.
+  // Флаг архивации имеет смысл только вместе с датой, по умолчанию включён.
+  const [endDate, setEndDate] = useState(null);
+  const [archiveOnEnd, setArchiveOnEnd] = useState(true);
 
   // Определяем, нужно ли показывать календарь
   const currentCategory = categories.find(cat => cat.id === categoryId);
@@ -40,7 +44,9 @@ function SubscriptionForm({
       setCategoryId(initialData.categoryId);
       setNotificationsEnabled(initialData.notificationsEnabled || false);
       setNotifyDaysBefore(initialData.notifyDaysBefore || []);
-      
+      setEndDate(initialData.endDate ? new Date(initialData.endDate) : null);
+      setArchiveOnEnd(initialData.archiveOnEnd !== false);
+
       if (initialData.fullPaymentDate) {
         setPaymentDate(new Date(initialData.fullPaymentDate));
       } else if (initialData.paymentDay) {
@@ -62,7 +68,9 @@ function SubscriptionForm({
       setPaymentDate(null);
       setNotificationsEnabled(false);
       setNotifyDaysBefore([]);
-      
+      setEndDate(null);
+      setArchiveOnEnd(true);
+
       // Если передана выбранная категория, устанавливаем её
       if (selectedCategory) {
         setCategoryId(selectedCategory.id);
@@ -84,6 +92,12 @@ function SubscriptionForm({
 
     if (!categoryId) {
       alert('Пожалуйста, выберите категорию.');
+      return;
+    }
+
+    // Срок, который заканчивается раньше первого платежа, — почти наверняка опечатка
+    if (endDate && paymentDate && endDate < paymentDate) {
+      alert('Дата окончания раньше даты старта подписки — проверьте даты.');
       return;
     }
 
@@ -110,6 +124,11 @@ function SubscriptionForm({
       subscriptionData.paymentDay = paymentDate.getDate();
       subscriptionData.fullPaymentDate = paymentDate.toISOString();
     }
+
+    // Дата окончания: пустое значение сервер понимает как «бессрочно» и
+    // снимает ранее заданную дату, поэтому передаём поле всегда.
+    subscriptionData.endDate = endDate ? endDate.toISOString() : null;
+    subscriptionData.archiveOnEnd = archiveOnEnd;
 
     // Добавляем настройки уведомлений
     subscriptionData.notificationsEnabled = notificationsEnabled;
@@ -251,6 +270,64 @@ function SubscriptionForm({
               portalId="root-portal"
             />
           </div>
+        )}
+      </div>
+
+      {/* Срок действия подписки */}
+      <div className="pt-4 border-t border-slate-200 dark:border-slate-700">
+        <label htmlFor="subEndDateModal" className={labelBaseClass}>
+          Дата окончания <span className="text-slate-400 font-normal">(необязательно)</span>
+        </label>
+        <DatePicker
+          id="subEndDateModal"
+          selected={endDate}
+          onChange={(date) => setEndDate(date)}
+          locale="ru"
+          dateFormat="dd MMMM yyyy"
+          placeholderText="Подписка бессрочная"
+          customInput={<CustomDatePickerInput placeholder="Подписка бессрочная" />}
+          popperPlacement="auto"
+          showMonthDropdown
+          showYearDropdown
+          dropdownMode="select"
+          popperClassName="z-[9999]"
+          portalId="root-portal"
+        />
+        <div className="flex items-start justify-between gap-3 mt-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            После этой даты платежей не будет: подписка выпадет из сумм и уведомлений,
+            а последний платёж попадёт в её историю.
+          </p>
+          {/* Своя кнопка вместо isClearable: с customInput крестик датапикера
+              не отображается */}
+          {endDate && (
+            <button
+              type="button"
+              onClick={() => setEndDate(null)}
+              className="text-xs text-slate-500 dark:text-slate-400 hover:text-brand-danger whitespace-nowrap underline decoration-dotted underline-offset-2"
+            >
+              Убрать дату
+            </button>
+          )}
+        </div>
+
+        {endDate && (
+          <label className="flex items-center cursor-pointer mt-3">
+            <input
+              type="checkbox"
+              checked={archiveOnEnd}
+              onChange={(e) => setArchiveOnEnd(e.target.checked)}
+              className="rounded border-slate-300 text-brand-primary focus:ring-brand-primary focus:ring-opacity-50"
+            />
+            <span className="ml-2 text-sm text-slate-700 dark:text-slate-200">
+              Отправить в архив после окончания
+            </span>
+          </label>
+        )}
+        {endDate && !archiveOnEnd && (
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 ml-6">
+            Подписка останется в списке с пометкой «срок истёк» — например, чтобы продлить.
+          </p>
         )}
       </div>
 

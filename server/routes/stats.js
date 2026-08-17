@@ -2,6 +2,7 @@ import { Router } from 'express';
 import authenticateToken from '../middlewares/authenticateToken.js';
 import Subscription from '../models/Subscription.js';
 import { getMonthlyCostInBase, getAnnualCostInBase, getTotalsByCurrency } from '../utils/currency.js';
+import { isSubscriptionExpired } from '../utils/cycle.js';
 import { getLatestCurrencyRates } from '../services/currencyService.js';
 
 const router = Router();
@@ -10,10 +11,15 @@ router.get('/', authenticateToken, async (req, res) => {
   try {
     // Архивные подписки в текущих тратах не участвуют.
     // Документы, созданные до появления status, поля не имеют — отсюда $ne.
-    const subscriptions = await Subscription.find({
+    const activeSubscriptions = await Subscription.find({
       userId: req.userDoc._id,
       status: { $ne: 'archived' }
     });
+
+    // Как и архивные, истёкшие подписки списаний больше не порождают: они
+    // могли остаться в списке (archiveOnEnd выключен), но в суммах их нет.
+    const subscriptions = activeSubscriptions.filter(sub => !isSubscriptionExpired(sub));
+    const expiredCount = activeSubscriptions.length - subscriptions.length;
 
     // Суммы отдаются в одной валюте: подписки бывают в RUB, USD, EUR и RSD,
     // и без пересчёта итог не значил бы ничего. Считаем в валюте пользователя,
@@ -28,6 +34,9 @@ router.get('/', authenticateToken, async (req, res) => {
 
     const stats = {
       totalSubscriptions: subscriptions.length,
+      // Сколько подписок осталось в списке с истёкшим сроком — их стоимость
+      // в суммы не входит, и это стоит показать рядом с цифрами
+      expiredSubscriptions: expiredCount,
       baseCurrency,
       totalMonthlyCost,
       totalAnnualCost: subscriptions.reduce(

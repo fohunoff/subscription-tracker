@@ -11,6 +11,7 @@ const TRACKED_FIELDS = [
   'paymentDay',
   'fullPaymentDate',
   'endDate',
+  'archiveOnEnd',
   'notificationsEnabled',
   'notifyDaysBefore'
 ];
@@ -71,6 +72,11 @@ export const logSubscriptionUpdate = async ({ userId, before, after }) => {
 
 /**
  * История одной подписки, свежие события первыми.
+ *
+ * Вторая ступень сортировки обязательна: события окончания срока (платёж →
+ * истёк → архив) пишутся в одну миллисекунду, и по одному createdAt порядок
+ * между ними случайный. ObjectId в пределах процесса монотонно растёт, поэтому
+ * _id восстанавливает исходную последовательность.
  */
 export const getSubscriptionHistory = (userId, subscriptionId) =>
-  SubscriptionEvent.find({ userId, subscriptionId }).sort({ createdAt: -1 }).lean();
+  SubscriptionEvent.find({ userId, subscriptionId }).sort({ createdAt: -1, _id: -1 }).lean();

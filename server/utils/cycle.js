@@ -87,11 +87,93 @@ export const getNextPaymentDateAfter = (subscription, from) => {
   return nextDate;
 };
 
+/**
+ * Конец дня даты окончания: в сам день подписка ещё действует, истекает она
+ * в его конце. Иначе платёж, попадающий ровно на дату окончания, оказался бы
+ * «за сроком».
+ */
+const endOfDay = (date) => {
+  const end = new Date(date);
+  end.setHours(23, 59, 59, 999);
+  return end;
+};
+
+/**
+ * Срок действия подписки истёк: дата окончания уже прошла.
+ *
+ * Истёкшая подписка не порождает новых платежей, поэтому не участвует
+ * в суммах, статистике и уведомлениях — независимо от того, ушла она в архив
+ * (archiveOnEnd) или осталась в списке.
+ */
+export const isSubscriptionExpired = (subscription, now = new Date()) => {
+  if (!subscription.endDate) return false;
+  return now > endOfDay(subscription.endDate);
+};
+
+/**
+ * Последний платёж в пределах срока действия — тот, после которого списаний
+ * уже не будет. Без даты окончания последнего платежа не существует.
+ */
+export const getLastPaymentDate = (subscription) => {
+  if (!subscription.endDate) return null;
+
+  const end = endOfDay(subscription.endDate);
+  const { months } = getCycleMeta(subscription.cycle);
+
+  // У подписок, заведённых до появления fullPaymentDate, есть только день
+  // месяца: отсчитываем от месяца окончания назад.
+  if (!subscription.fullPaymentDate) {
+    if (!subscription.paymentDay) return null;
+
+    const candidate = new Date(end.getFullYear(), end.getMonth(), subscription.paymentDay);
+    while (candidate > end) {
+      candidate.setMonth(candidate.getMonth() - months);
+    }
+    return candidate;
+  }
+
+  const last = new Date(subscription.fullPaymentDate);
+  // Подписку закрыли раньше первого платежа — платить было не за что
+  if (last > end) return null;
+
+  for (;;) {
+    const step = new Date(last);
+    step.setMonth(step.getMonth() + months);
+    if (step > end) break;
+    last.setTime(step.getTime());
+  }
+
+  return last;
+};
+
+/**
+ * Дата попадает в срок действия подписки (без даты окончания — всегда).
+ */
+export const isWithinTerm = (subscription, date) =>
+  !subscription.endDate || date <= endOfDay(subscription.endDate);
+
+/**
+ * Платёж, после которого списаний по подписке уже не будет.
+ */
+export const isLastPayment = (subscription, paymentDate) => {
+  if (!subscription.endDate || !paymentDate) return false;
+
+  const next = getNextPaymentDateAfter(subscription, paymentDate);
+  return !next || next > endOfDay(subscription.endDate);
+};
+
 export const getNextPaymentDate = (subscription) => {
   // Без полной даты платежа считать нечего: уведомления и расписание опираются
   // именно на неё. Поведение сохранено намеренно — getNextPaymentDateAfter
   // с фолбэком на paymentDay используется только там, где он уместен.
   if (!subscription.fullPaymentDate) return null;
 
-  return getNextPaymentDateAfter(subscription, new Date());
+  const next = getNextPaymentDateAfter(subscription, new Date());
+
+  // За датой окончания платежей больше нет. Проверка живёт здесь, а не в
+  // getNextPaymentDateAfter: тому нужен «сырой» расчёт по циклу — например,
+  // при возврате из архива, где endDate как раз и есть дата завершения.
+  if (next && subscription.endDate && next > endOfDay(subscription.endDate)) return null;
+
+  return next;
 };

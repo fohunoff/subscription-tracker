@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { formatCurrency } from '../utils';
-import { getNextPaymentDate } from '../utils/cycle';
+import { getNextPaymentDate, getBillableSubscriptions } from '../utils/cycle';
 import { getMonthlyCostInBase } from '../utils/currency';
 import CurrencyBreakdown from './CurrencyBreakdown';
 
@@ -17,11 +17,19 @@ const TotalExpenses = ({
   totalCount = null,
   onSubscriptionClick
 }) => {
+  // Истёкшие подписки не участвуют ни в сумме, ни в топе категорий:
+  // платежей по ним больше не будет, а в списке они могли остаться.
+  const billableSubscriptions = useMemo(
+    () => getBillableSubscriptions(subscriptions),
+    [subscriptions]
+  );
+  const expiredCount = subscriptions.length - billableSubscriptions.length;
+
   // Группируем расходы по категориям
   const categoryExpenses = useMemo(() => {
     const expenses = {};
 
-    subscriptions.forEach(sub => {
+    billableSubscriptions.forEach(sub => {
       const categoryId = sub.categoryId?._id || sub.categoryId?.id || sub.categoryId;
       const category = categories.find(cat => cat.id === categoryId || cat._id === categoryId);
 
@@ -51,7 +59,7 @@ const TotalExpenses = ({
     return Object.values(expenses)
       .sort((a, b) => b.total - a.total)
       .slice(0, 5); // Топ-5 категорий
-  }, [subscriptions, categories, currencyRates, baseCurrency]);
+  }, [billableSubscriptions, categories, currencyRates, baseCurrency]);
 
   // Вычисляем процент для каждой категории
   const categoriesWithPercentage = useMemo(() => {
@@ -66,7 +74,7 @@ const TotalExpenses = ({
   const nextPayment = useMemo(() => {
     let best = null;
 
-    subscriptions.forEach(sub => {
+    billableSubscriptions.forEach(sub => {
       const date = getNextPaymentDate(sub);
       if (!date) return;
       if (!best || date < best.date) {
@@ -80,7 +88,7 @@ const TotalExpenses = ({
     });
 
     return best;
-  }, [subscriptions, categories]);
+  }, [billableSubscriptions, categories]);
 
   const handleCategoryClick = (categoryId) => {
     if (onCategoryClick) {
@@ -109,6 +117,13 @@ const TotalExpenses = ({
           {isFiltered && totalCount !== null
             ? `Найдено подписок: ${subscriptions.length} из ${totalCount}`
             : `Всего подписок: ${subscriptions.length}`}
+          {expiredCount > 0 && (
+            <span className="block text-xs text-amber-600 dark:text-amber-400 mt-1">
+              {expiredCount === 1
+                ? 'Одна подписка с истёкшим сроком в сумму не входит'
+                : `Подписок с истёкшим сроком (не входят в сумму): ${expiredCount}`}
+            </span>
+          )}
         </p>
 
         {nextPayment && (

@@ -1,4 +1,5 @@
 import { getCycleMeta } from '../../../shared/utils/cycle';
+import { formatCurrency } from '../../../shared/utils';
 
 /**
  * Превращает запись лога (server/models/SubscriptionEvent.js) в человеческие
@@ -16,6 +17,8 @@ const EVENT_TITLES = {
   restored: 'Восстановлена после перерыва',
   deleted: 'Подписка удалена',
   updated: 'Изменения',
+  payment: 'Платёж',
+  ended: 'Срок действия истёк',
 };
 
 const FIELD_LABELS = {
@@ -82,10 +85,22 @@ export const getEventTitle = (event) => EVENT_TITLES[event.type] || event.type;
  * завершена и был ли пропущен платёж.
  */
 export const describeStatusEvent = (event) => {
-  const { endDate, missedPaymentDate } = event.changes || {};
+  const { endDate, missedPaymentDate, amount, currency, paidAt, isLast, archived } = event.changes || {};
   const details = [];
 
   switch (event.type) {
+    case 'payment':
+      details.push(
+        [typeof amount === 'number' ? formatCurrency(amount, currency) : null, formatDay(paidAt)]
+          .filter(Boolean)
+          .join(' — ')
+      );
+      if (isLast) details.push('Последний платёж по подписке');
+      break;
+    case 'ended':
+      if (endDate?.to) details.push(`Дата окончания: ${formatDay(endDate.to)}`);
+      details.push(archived ? 'Отправлена в архив' : 'Осталась в списке с истёкшим сроком');
+      break;
     case 'archived':
       if (endDate?.to) details.push(`Дата окончания: ${formatDay(endDate.to)}`);
       break;

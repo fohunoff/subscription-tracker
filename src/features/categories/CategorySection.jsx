@@ -4,6 +4,7 @@ import { SubscriptionList } from '../subscriptions';
 import { SubscriptionListSkeleton, CurrencyBreakdown } from '../../shared';
 import { formatCurrency } from '../../shared/utils';
 import { getMonthlyCostInBase } from '../../shared/utils/currency';
+import { getBillableSubscriptions } from '../../shared/utils/cycle';
 
 const CategorySection = forwardRef(function CategorySection({
   category,
@@ -46,8 +47,9 @@ const CategorySection = forwardRef(function CategorySection({
     return sorted;
   }, [categorySubscriptions, category.sortBy]);
 
-  // Рассчитываем общую стоимость подписок в категории
-  const totalInBaseCurrency = categorySubscriptions.reduce(
+  // Рассчитываем общую стоимость подписок в категории.
+  // Истёкшие в неё не входят: платежей по ним больше не будет.
+  const totalInBaseCurrency = getBillableSubscriptions(categorySubscriptions).reduce(
     (total, sub) => total + getMonthlyCostInBase(sub, currencyRates, baseCurrency),
     0
   );

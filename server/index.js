@@ -6,6 +6,7 @@ import app from './app.js';
 import { initBot, startBot, stopBot } from './telegram/bot.js';
 import { startScheduler, stopScheduler } from './telegram/scheduler.js';
 import { initializeCurrencyRates } from './services/currencyService.js';
+import { startLifecycleScheduler, stopLifecycleScheduler } from './services/subscriptionLifecycle.js';
 
 // =====================
 // ПОДКЛЮЧЕНИЕ К MONGODB
@@ -50,6 +51,10 @@ const startServer = async () => {
       // Инициализируем курсы валют
       initializeCurrencyRates();
 
+      // Окончание срока подписок не зависит от Telegram: планировщик
+      // уведомлений стартует только вместе с ботом, этот — всегда.
+      startLifecycleScheduler();
+
       // Запускаем Telegram бота ПОСЛЕ запуска HTTP сервера
       const bot = initBot(env.telegramBotToken);
       if (bot) {
@@ -64,6 +69,7 @@ const startServer = async () => {
 
       // Останавливаем scheduler и Telegram бота
       stopScheduler();
+      stopLifecycleScheduler();
       await stopBot();
 
       server.close(async (err) => {

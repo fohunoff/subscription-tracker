@@ -50,7 +50,10 @@ src/
   - Supports: RUB, USD, EUR, RSD currencies
   - Cycles: monthly, quarterly, annually
   - status: 'active' | 'archived' + endDate, archivedAt (завершённые подписки)
-- SubscriptionEvent: лог изменений по подписке (created/updated/archived/restored/deleted)
+  - срок действия: endDate + archiveOnEnd (архивировать по окончании, по умолчанию да)
+    + endHandledAt (отметка обработки, служебное)
+- SubscriptionEvent: лог изменений по подписке
+  (created/updated/archived/returned/restored/deleted/payment/ended)
 
 **Authentication:**
 - JWT-based with Bearer token authentication
@@ -94,6 +97,32 @@ src/
 возобновили старую подписку или оформили заново, — вместо этого ответ несёт
 `restoreType` и `missedPaymentDate`, а клиент предупреждает тостом.
 У записей лога, сделанных до этого разделения, тип всегда `restored`.
+
+**Срок действия подписки.** `endDate` необязательна: без неё подписка бессрочна.
+С ней после последнего дня платежей больше нет — `getNextPaymentDate` возвращает
+`null` за границей срока, и подписка сама выпадает из уведомлений. Из сумм её
+убирает `isSubscriptionExpired` / `getBillableSubscriptions`: истёкшая подписка
+не участвует ни в «расходе в месяц», ни в топе категорий, ни в `/api/stats`
+(там же счётчик `expiredSubscriptions`), ни в сводках бота — при этом может
+оставаться в списке с пометкой «срок истёк».
+
+Проверку границы срока намеренно **нет** в `getNextPaymentDateAfter`: ему нужен
+сырой расчёт по циклу — на нём стоит разделение `returned` / `restored`, где
+`endDate` как раз и есть дата завершения.
+
+Наступление даты обрабатывает `server/services/subscriptionLifecycle.js`:
+пишет в историю последний платёж (`payment` с суммой) и `ended`, а при
+`archiveOnEnd` (по умолчанию включён) архивирует. Флаг выключают, когда подписку
+хотят видеть в списке — например, чтобы продлить. Идемпотентность держит
+`endHandledAt`; правка `endDate` в `PUT /subscriptions/:id` и возврат из архива
+сбрасывают отметку, иначе продлённую подписку больше никогда бы не обработали.
+
+Планировщик этой задачи стартует в `index.js` **вне** блока `if (bot)`:
+`telegram/scheduler.js` поднимается только вместе с Telegram-ботом, а срок
+действия истекает независимо от того, подключён ли бот.
+
+Уведомления о платеже, который окажется последним (`isLastPayment`), несут
+приписку — уйдёт ли подписка в архив или просто истечёт срок.
 
 **Поиск и представления.** `useSubscriptionFilters` (features/subscriptions/hooks)
 держит всю логику поиска и группировки: фильтрация по названию подписки и названию

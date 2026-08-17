@@ -18,6 +18,7 @@ import { Cog6ToothIcon, PlusIcon, TagIcon, SunIcon, MoonIcon } from '@heroicons/
 import { useBaseCurrency, useCurrencyRates, useTheme } from './features/settings/hooks';
 import { useSubscriptions, useSubscriptionFilters } from './features/subscriptions/hooks';
 import { DEFAULT_CURRENCY, getMonthlyCostInBase } from './shared/utils/currency';
+import { getBillableSubscriptions } from './shared/utils/cycle';
 import { useLocalStorage } from './shared/hooks';
 import { useCategories } from './features/categories/hooks/useCategories';
 import CategoryForm from './features/categories/CategoryForm';
@@ -117,8 +118,9 @@ function AppContent() {
 
   // Сумма считается по отфильтрованным подпискам: при активном поиске блок
   // расходов показывает то, что видно на экране, а не общий итог.
+  // Истёкшие подписки в сумму не входят — платежей по ним больше не будет.
   const totalMonthlyCost = useMemo(() => (
-    filteredSubscriptions.reduce(
+    getBillableSubscriptions(filteredSubscriptions).reduce(
       (total, sub) => total + getMonthlyCostInBase(sub, currencyRates, baseCurrency),
       0
     )

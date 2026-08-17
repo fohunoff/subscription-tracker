@@ -5,7 +5,10 @@ import { sendNotification } from './bot.js';
 import {
   getNextPaymentDate,
   getPaymentDateInMonth,
-  getCycleMeta
+  getCycleMeta,
+  isSubscriptionExpired,
+  isLastPayment,
+  isWithinTerm
 } from '../utils/cycle.js';
 import { getMonthlyCostInBase } from '../utils/currency.js';
 import { getLatestCurrencyRates } from '../services/currencyService.js';
@@ -185,6 +188,14 @@ async function sendGroupedNotification(user, daysUntil, items) {
       const amount = formatAmount(subscription.cost, subscription.currency);
       const dateStr = formatDate(nextPaymentDate);
       message += `  • ${subscription.name}: ${amount} (${dateStr})\n`;
+
+      // Предупреждаем, что списание последнее: после него подписка либо
+      // останется в списке с истёкшим сроком, либо уйдёт в архив сама.
+      if (isLastPayment(subscription, nextPaymentDate)) {
+        message += subscription.archiveOnEnd !== false
+          ? '    ⚠️ <i>Последний платёж — после него подписка уйдёт в архив</i>\n'
+          : '    ⚠️ <i>Последний платёж — дальше срок действия истекает</i>\n';
+      }
     }
     message += '\n';
   }
@@ -290,9 +301,13 @@ async function sendMonthlyNotificationForUser(user) {
   const upcomingSubscriptions = [];
 
   for (const sub of subscriptions) {
+    // Истёкшая подписка платежей больше не порождает, даже если осталась
+    // в списке (archiveOnEnd выключен)
+    if (isSubscriptionExpired(sub)) continue;
+
     const paymentDateInMonth = getPaymentDateInMonth(sub, currentMonth, currentYear);
 
-    if (paymentDateInMonth) {
+    if (paymentDateInMonth && isWithinTerm(sub, paymentDateInMonth)) {
       monthSubscriptions.push({ sub, paymentDate: paymentDateInMonth });
 
       // Разделяем на оплаченные и предстоящие
@@ -359,6 +374,12 @@ async function sendMonthlyNotificationForUser(user) {
         text += `  ${notifyIcon} ${sub.name}\n`;
         text += `     ${amount} ${cycleMeta.icon} ${cycleMeta.perLabel}\n`;
         text += `     💳 Платёж: ${dateStr}\n`;
+
+        if (isLastPayment(sub, paymentDate)) {
+          text += sub.archiveOnEnd !== false
+            ? '     ⚠️ Последний платёж, дальше в архив\n'
+            : '     ⚠️ Последний платёж, срок действия истекает\n';
+        }
 
         if (sub.notificationsEnabled && sub.notifyDaysBefore?.length > 0) {
           text += `     ⏰ Напомнить за: ${sub.notifyDaysBefore.join(', ')} дн.\n`;

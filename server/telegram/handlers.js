@@ -1,7 +1,13 @@
 import User from '../models/User.js';
 import Subscription from '../models/Subscription.js';
 import Category from '../models/Category.js';
-import { getPaymentDateInMonth, getCycleMeta } from '../utils/cycle.js';
+import {
+  getPaymentDateInMonth,
+  getCycleMeta,
+  isSubscriptionExpired,
+  isLastPayment,
+  isWithinTerm
+} from '../utils/cycle.js';
 import { getMonthlyCostInBase } from '../utils/currency.js';
 import { getLatestCurrencyRates } from '../services/currencyService.js';
 import { formatAmount, currencySymbol } from './format.js';
@@ -187,9 +193,13 @@ export const handleMonth = async (ctx) => {
     const upcomingSubscriptions = [];
 
     for (const sub of subscriptions) {
+      // Истёкшая подписка платежей больше не порождает, даже если осталась
+      // в списке (archiveOnEnd выключен)
+      if (isSubscriptionExpired(sub)) continue;
+
       const paymentDateInMonth = getPaymentDateInMonth(sub, currentMonth, currentYear);
 
-      if (paymentDateInMonth) {
+      if (paymentDateInMonth && isWithinTerm(sub, paymentDateInMonth)) {
         monthSubscriptions.push({ sub, paymentDate: paymentDateInMonth });
 
         // Разделяем на оплаченные и предстоящие
@@ -259,6 +269,12 @@ export const handleMonth = async (ctx) => {
           text += `  ${notifyIcon} ${sub.name}\n`;
           text += `     ${amount} ${cycleMeta.icon} ${cycleMeta.perLabel}\n`;
           text += `     💳 Платёж: ${dateStr}\n`;
+
+          if (isLastPayment(sub, paymentDate)) {
+            text += sub.archiveOnEnd !== false
+              ? '     ⚠️ Последний платёж, дальше в архив\n'
+              : '     ⚠️ Последний платёж, срок действия истекает\n';
+          }
 
           if (sub.notificationsEnabled && sub.notifyDaysBefore?.length > 0) {
             text += `     ⏰ Напомнить за: ${sub.notifyDaysBefore.join(', ')} дн.\n`;

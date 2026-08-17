@@ -1,7 +1,7 @@
 import React from 'react';
 import { DocumentMagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import SubscriptionItem from './SubscriptionItem';
-import { getNextPaymentDate } from '../../shared/utils/cycle';
+import { getNextPaymentDate, isSubscriptionExpired } from '../../shared/utils/cycle';
 
 const MONTH_FORMAT = { day: 'numeric', month: 'long' };
 
@@ -37,7 +37,12 @@ function FlatSubscriptionList({
 
   subscriptions.forEach((sub) => {
     const nextDate = getNextPaymentDate(sub);
-    const key = nextDate ? `${nextDate.getFullYear()}-${nextDate.getMonth()}` : 'no-date';
+    // Истёкшие тоже остаются без даты, но по другой причине — и это стоит
+    // назвать своим именем, а не валить в одну кучу с категориями без дат.
+    const expired = !nextDate && isSubscriptionExpired(sub);
+    const key = nextDate
+      ? `${nextDate.getFullYear()}-${nextDate.getMonth()}`
+      : (expired ? 'expired' : 'no-date');
 
     if (!groupIndexByKey.has(key)) {
       groupIndexByKey.set(key, groups.length);
@@ -45,7 +50,7 @@ function FlatSubscriptionList({
         key,
         title: nextDate
           ? nextDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })
-          : 'Без даты платежа',
+          : (expired ? 'Срок действия истёк' : 'Без даты платежа'),
         items: []
       });
     }

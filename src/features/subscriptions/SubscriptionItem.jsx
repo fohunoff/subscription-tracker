@@ -1,7 +1,7 @@
 import React from 'react';
 import { CalendarDaysIcon, TrashIcon, CurrencyDollarIcon, PencilSquareIcon, BellIcon, BellSlashIcon, ArchiveBoxIcon } from '@heroicons/react/24/outline';
 import { formatCurrency } from '../../shared/utils';
-import { getCycleMeta } from '../../shared/utils/cycle';
+import { getCycleMeta, isSubscriptionExpired } from '../../shared/utils/cycle';
 
 // fallback currency symbols
 const CURRENCY_SYMBOLS = {
@@ -20,6 +20,11 @@ const CURRENCY_SYMBOLS = {
 function SubscriptionItem({ subscription, onDeleteSubscription, onEditSubscription, onArchiveSubscription, onOpenDetails, as: Wrapper = 'li' }) {
   const cycleMeta = getCycleMeta(subscription.cycle);
   const cycleText = cycleMeta.shortLabel;
+  // Срок мог истечь, а подписка остаться в списке — если выключен archiveOnEnd
+  const isExpired = isSubscriptionExpired(subscription);
+  const endDateText = subscription.endDate
+    ? new Date(subscription.endDate).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
+    : null;
   // Для ежемесячных достаточно дня месяца, остальным нужна дата: по ней видно,
   // в какие именно месяцы приходится платёж.
   const isMonthly = subscription.cycle === 'monthly';
@@ -39,8 +44,13 @@ function SubscriptionItem({ subscription, onDeleteSubscription, onEditSubscripti
         tabIndex={onOpenDetails ? 0 : undefined}
         title={onOpenDetails ? 'Открыть детали подписки' : undefined}
       >
-        <h3 className="text-lg font-semibold text-slate-800 truncate" title={subscription.name}>
-          {subscription.name}
+        <h3 className="text-lg font-semibold text-slate-800 truncate flex items-center gap-2" title={subscription.name}>
+          <span className="truncate">{subscription.name}</span>
+          {isExpired && (
+            <span className="flex-shrink-0 text-xs font-normal px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+              срок истёк
+            </span>
+          )}
         </h3>
         <div className="flex items-center space-x-3 text-sm text-slate-600 mt-1">
           <div className="flex items-center">
@@ -70,6 +80,14 @@ function SubscriptionItem({ subscription, onDeleteSubscription, onEditSubscripti
             </span>
           </div>
         </div>
+
+        {endDateText && (
+          <p className={`text-xs mt-1 ${isExpired ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500 dark:text-slate-400'}`}>
+            {isExpired
+              ? `Срок истёк ${endDateText} — в суммах не учитывается`
+              : `Действует до ${endDateText}`}
+          </p>
+        )}
       </div>
       <div className="flex items-center space-x-2 self-start sm:self-center">
         {/* Иконка статуса уведомлений */}

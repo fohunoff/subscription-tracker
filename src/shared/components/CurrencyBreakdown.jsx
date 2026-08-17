@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { formatCurrency } from '../utils';
 import { getTotalsByCurrency } from '../utils/currency';
+import { getBillableSubscriptions } from '../utils/cycle';
 
 /**
  * Месячный расход в валютах самих подписок: «4 000 RSD / 32 000 ₽».
@@ -14,7 +15,11 @@ import { getTotalsByCurrency } from '../utils/currency';
  * совпадает с базовой.
  */
 const CurrencyBreakdown = ({ subscriptions, baseCurrency, className = '', separator = ' / ' }) => {
-  const totals = useMemo(() => getTotalsByCurrency(subscriptions), [subscriptions]);
+  // Истёкшие подписки не считаем — иначе разбивка разошлась бы с итогом
+  const totals = useMemo(
+    () => getTotalsByCurrency(getBillableSubscriptions(subscriptions)),
+    [subscriptions]
+  );
 
   if (totals.length === 0) return null;
   if (totals.length === 1 && totals[0].currency === baseCurrency) return null;

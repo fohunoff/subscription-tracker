@@ -26,6 +26,9 @@ const formatSubscription = (sub) => ({
   fullPaymentDate: sub.fullPaymentDate,
   status: sub.status || 'active',
   endDate: sub.endDate,
+  // У документов, созданных до появления поля, значения нет — в архив по
+  // окончании срока их всё равно отправляем, это поведение по умолчанию.
+  archiveOnEnd: sub.archiveOnEnd !== false,
   archivedAt: sub.archivedAt,
   categoryId: sub.categoryId._id.toString(),
   category: {
@@ -68,7 +71,7 @@ router.get('/', authenticateToken, async (req, res) => {
 // Создание новой подписки
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    const { name, cost, currency, cycle, paymentDay, fullPaymentDate, categoryId, notificationsEnabled, notifyDaysBefore } = req.body;
+    const { name, cost, currency, cycle, paymentDay, fullPaymentDate, endDate, archiveOnEnd, categoryId, notificationsEnabled, notifyDaysBefore } = req.body;
 
     // Проверяем, что категория существует и принадлежит пользователю
     const category = await Category.findOne({
@@ -96,6 +99,16 @@ router.post('/', authenticateToken, async (req, res) => {
       }
       subscriptionData.paymentDay = parseInt(paymentDay);
       subscriptionData.fullPaymentDate = fullPaymentDate;
+    }
+
+    // Дата окончания необязательна: подписка без неё длится бессрочно
+    if (endDate) {
+      const parsedEndDate = new Date(endDate);
+      if (isNaN(parsedEndDate.getTime())) {
+        return res.status(400).json({ message: 'Некорректная дата окончания' });
+      }
+      subscriptionData.endDate = parsedEndDate;
+      subscriptionData.archiveOnEnd = archiveOnEnd !== false;
     }
 
     // Добавляем настройки уведомлений
@@ -137,7 +150,7 @@ router.post('/', authenticateToken, async (req, res) => {
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, cost, currency, cycle, paymentDay, fullPaymentDate, endDate, categoryId, notificationsEnabled, notifyDaysBefore } = req.body;
+    const { name, cost, currency, cycle, paymentDay, fullPaymentDate, endDate, archiveOnEnd, categoryId, notificationsEnabled, notifyDaysBefore } = req.body;
 
     const subscription = await Subscription.findOne({ _id: id, userId: req.userDoc._id }).populate('categoryId');
     if (!subscription) {
@@ -187,7 +200,27 @@ router.put('/:id', authenticateToken, async (req, res) => {
       updateData.cycle = cycle;
     }
     if (endDate !== undefined) {
-      updateData.endDate = endDate || undefined;
+      let parsedEndDate = null;
+      if (endDate) {
+        parsedEndDate = new Date(endDate);
+        if (isNaN(parsedEndDate.getTime())) {
+          throw new Error('Некорректная дата окончания');
+        }
+      }
+
+      // Явный null, а не undefined: undefined mongoose выбрасывает из update,
+      // и снять однажды поставленную дату было бы невозможно.
+      updateData.endDate = parsedEndDate;
+
+      // Дату перенесли — значит наступление срока нужно обработать заново
+      // (записать платёж, архивировать), даже если старую уже отработали.
+      const previousEnd = subscription.endDate ? new Date(subscription.endDate).getTime() : null;
+      if (previousEnd !== (parsedEndDate ? parsedEndDate.getTime() : null)) {
+        updateData.endHandledAt = null;
+      }
+    }
+    if (archiveOnEnd !== undefined) {
+      updateData.archiveOnEnd = Boolean(archiveOnEnd);
     }
 
     // Обработка полей даты в зависимости от типа категории
@@ -337,6 +370,9 @@ router.patch('/:id/restore', authenticateToken, async (req, res) => {
     subscription.status = 'active';
     subscription.archivedAt = undefined;
     subscription.endDate = undefined;
+    // Срока больше нет — прежняя отметка об обработке окончания не должна
+    // мешать, если пользователь задаст новую дату
+    subscription.endHandledAt = undefined;
     await subscription.save();
 
     await logSubscriptionEvent({
