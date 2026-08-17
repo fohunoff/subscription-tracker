@@ -20,7 +20,16 @@ const normalize = (value) => {
   if (value === undefined || value === null) return null;
   if (value instanceof Date) return value.toISOString();
   if (Array.isArray(value)) return value.join(',');
-  if (typeof value === 'object' && value.toString) return value.toString();
+
+  // Ссылка на категорию приходит в двух видах: снимок «до» берётся из
+  // toObject() и содержит обычный объект, «после» — populated-документ
+  // mongoose. Их строковые представления различаются («[object Object]»
+  // против inspect-вывода), поэтому сравнивать нужно идентификаторы —
+  // иначе любая правка подписки выглядела бы как смена категории.
+  if (typeof value === 'object') {
+    return String(value._id ?? value);
+  }
+
   return value;
 };
 
