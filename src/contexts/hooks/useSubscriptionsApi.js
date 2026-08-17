@@ -105,7 +105,8 @@ export function useSubscriptionsApi(API_URL, token) {
       return data.subscription;
     };
 
-    // Обновить подписку
+    // Обновить подписку. Кроме самой подписки сервер сообщает, сколько прошлых
+    // платежей пересобрано: правка даты старта или цикла меняет историю трат.
     const updateSubscription = async (id, subscriptionData) => {
       const response = await fetch(`${API_URL}/subscriptions/${id}`, {
         method: 'PUT',
@@ -120,9 +121,12 @@ export function useSubscriptionsApi(API_URL, token) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Ошибка обновления подписки');
       }
-      
+
       const data = await response.json();
-      return data.subscription;
+      return {
+        subscription: data.subscription,
+        recalculatedPayments: data.recalculatedPayments || 0
+      };
     };
 
     // Удалить подписку

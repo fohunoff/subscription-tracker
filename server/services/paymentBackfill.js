@@ -169,3 +169,25 @@ export const removeEstimatedPayments = async (subscriptionId = null) => {
   const result = await SubscriptionEvent.deleteMany(filter);
   return result.deletedCount;
 };
+
+/**
+ * Пересобирает оценки одной подписки: сносит прежние и строит заново.
+ *
+ * Вызывается, когда сменилась дата старта или цикл — от них считаются все даты
+ * прошлых платежей, и старая оценка после правки описывала бы уже не эту
+ * подписку. Ошибки не пробрасываются: правка подписки не должна падать из-за
+ * пересчёта истории, а восстановить её всегда можно скриптом с --reset.
+ */
+export const rebuildEstimatedPayments = async (subscription, { now = new Date() } = {}) => {
+  try {
+    await removeEstimatedPayments(subscription._id);
+    const created = await backfillSubscriptionPayments(subscription, { apply: true, now });
+    return created.length;
+  } catch (error) {
+    console.error(
+      `[Backfill] Не удалось пересобрать платежи подписки ${subscription._id}:`,
+      error.message
+    );
+    return 0;
+  }
+};

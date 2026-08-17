@@ -31,11 +31,13 @@ const Modal = ({ isOpen, onClose, title, children }) => {
       aria-modal="true"
       aria-labelledby="modal-title"
     >
+      {/* Высота ограничена экраном, содержимое прокручивается: без этого
+          длинная форма уходила за края и добраться до кнопок было нельзя */}
       <div
-        className="bg-white rounded-xl shadow-2xl w-full max-w-lg m-4 overflow-hidden transform transition-all duration-300 ease-in-out scale-95 opacity-0 animate-modalShow"
+        className="bg-white rounded-xl shadow-2xl w-full max-w-lg m-4 max-h-[calc(100vh-2rem)] flex flex-col overflow-hidden transform transition-all duration-300 ease-in-out scale-95 opacity-0 animate-modalShow"
         onClick={(e) => e.stopPropagation()} // Предотвращаем закрытие по клику внутри модалки
       >
-        <div className="flex items-center justify-between p-5 border-b border-slate-200">
+        <div className="flex items-center justify-between p-5 border-b border-slate-200 flex-shrink-0">
           <h2 id="modal-title" className="text-xl font-semibold text-slate-700">
             {title}
           </h2>
@@ -47,7 +49,7 @@ const Modal = ({ isOpen, onClose, title, children }) => {
             <XMarkIcon className="h-6 w-6" />
           </button>
         </div>
-        <div className="p-5 md:p-6">
+        <div className="p-5 md:p-6 overflow-y-auto overscroll-contain">
           {children}
         </div>
       </div>

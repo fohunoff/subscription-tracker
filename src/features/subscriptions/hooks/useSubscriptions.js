@@ -47,9 +47,15 @@ export function useSubscriptions(api, showToast) {
   const updateSubscription = useCallback(async (id, updatedSubData) => {
     if (!api) return;
     try {
-      const updatedSubscription = await api.updateSubscription(id, updatedSubData);
+      const { subscription: updatedSubscription, recalculatedPayments } =
+        await api.updateSubscription(id, updatedSubData);
       setSubscriptions(prev => prev.map(sub => sub.id === id ? updatedSubscription : sub));
-      showToast && showToast('Изменения сохранены', 'success');
+      showToast && showToast(
+        recalculatedPayments > 0
+          ? `Изменения сохранены, история платежей пересобрана (${recalculatedPayments})`
+          : 'Изменения сохранены',
+        'success'
+      );
     } catch (error) {
       console.error('Ошибка обновления подписки:', error);
       showToast && showToast(error.message || 'Ошибка обновления подписки', 'error');

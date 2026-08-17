@@ -1,4 +1,5 @@
 export { default as Modal } from './Modal.jsx';
+export { default as Drawer } from './Drawer.jsx';
 export { default as GoogleLoginButton } from './GoogleLoginButton.jsx';
 export { default as UserMenu } from './UserMenu.jsx';
 export { default as LoginPage } from './LoginPage.jsx';

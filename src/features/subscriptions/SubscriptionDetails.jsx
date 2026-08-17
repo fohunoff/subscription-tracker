@@ -170,6 +170,15 @@ function SubscriptionDetails({
           </div>
         )}
 
+        {/* Дата старта: от неё считаются все платежи, включая восстановленные
+            бэкфиллом, — без неё непонятно, откуда в истории взялся первый */}
+        {subscription.fullPaymentDate && (
+          <div className={rowClass}>
+            <span className={labelClass}>Первый платёж</span>
+            <span className={valueClass}>{formatFullDate(new Date(subscription.fullPaymentDate))}</span>
+          </div>
+        )}
+
         {isArchived && subscription.endDate && (
           <div className={rowClass}>
             <span className={labelClass}>Завершена</span>

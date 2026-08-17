@@ -9,6 +9,7 @@ import {
   getSubscriptionHistory
 } from '../services/subscriptionEvents.js';
 import { logDuePayments } from '../services/subscriptionLifecycle.js';
+import { rebuildEstimatedPayments } from '../services/paymentBackfill.js';
 import authenticateToken from '../middlewares/authenticateToken.js';
 
 const router = Router();
@@ -274,9 +275,24 @@ router.put('/:id', authenticateToken, async (req, res) => {
       after: updatedSubscription
     });
 
+    // Даты прошлых платежей считаются от даты старта шагами цикла: сменилось
+    // любое из двух — восстановленная история перестала соответствовать данным.
+    // Пересобираем только оценки, наблюдённые платежи не трогаем.
+    const startChanged =
+      String(before.fullPaymentDate ?? null) !== String(updatedSubscription.fullPaymentDate ?? null);
+    const cycleChanged = before.cycle !== updatedSubscription.cycle;
+
+    let recalculatedPayments = 0;
+    if (startChanged || cycleChanged) {
+      recalculatedPayments = await rebuildEstimatedPayments(updatedSubscription);
+    }
+
     res.json({
       success: true,
       subscription: formatSubscription(updatedSubscription),
+      // Клиент сообщает о пересчёте: сумма трат за прошлые месяцы изменилась
+      // не потому, что что-то сломалось, а из-за правки даты старта
+      recalculatedPayments,
       message: 'Подписка обновлена успешно'
     });
   } catch (error) {

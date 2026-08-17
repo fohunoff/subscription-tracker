@@ -11,7 +11,7 @@ import {
 } from './features/subscriptions';
 import { ExportData } from './features/telegram';
 import { SpendingSection, useSpending } from './features/stats';
-import { Modal, TotalExpenses, CategorySkeleton, TotalExpensesSkeleton } from './shared';
+import { Modal, Drawer, TotalExpenses, CategorySkeleton, TotalExpensesSkeleton } from './shared';
 import { SettingsModal } from './features/settings';
 import { LoginPage, UserMenu } from './shared';
 import { useToast } from './features/notifications';
@@ -258,13 +258,21 @@ function AppContent() {
     if (!api) return;
 
     try {
-      const updatedSubscription = await api.updateSubscription(id, updatedSubData);
-      setSubscriptions(prev => prev.map(sub => 
+      const { subscription: updatedSubscription, recalculatedPayments } =
+        await api.updateSubscription(id, updatedSubData);
+      setSubscriptions(prev => prev.map(sub =>
         sub.id === id ? updatedSubscription : sub
       ));
       setIsModalOpen(false);
       setEditingSubscription(null);
-      showToast('Изменения сохранены', 'success');
+      // Правка даты старта или цикла перестраивает прошлые платежи — статистика
+      // трат изменится, и об этом лучше сказать прямо
+      showToast(
+        recalculatedPayments > 0
+          ? `Изменения сохранены, история платежей пересобрана (${recalculatedPayments})`
+          : 'Изменения сохранены',
+        'success'
+      );
     } catch (error) {
       console.error('Ошибка обновления подписки:', error);
       showToast(error.message || 'Ошибка обновления подписки', 'error');
@@ -565,8 +573,9 @@ function AppContent() {
         )}
       </Modal>
 
-      {/* Детали подписки */}
-      <Modal
+      {/* Детали подписки — боковой панелью: история платежей длинная,
+          в окне по центру она не прокручивалась */}
+      <Drawer
         isOpen={!!detailsSubscription}
         onClose={closeDetails}
         title={detailsSubscription?.name || 'Подписка'}
@@ -583,7 +592,7 @@ function AppContent() {
             onDelete={handleDeleteFromDetails}
           />
         )}
-      </Modal>
+      </Drawer>
 
       {/* Модальное окно для настроек */}
       <SettingsModal
