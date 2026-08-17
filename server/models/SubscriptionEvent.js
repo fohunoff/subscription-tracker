@@ -25,10 +25,15 @@ const subscriptionEventSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  /**
+   * returned и restored — оба про возврат из архива, но это разные события:
+   * returned — вернули до ближайшего платежа, подписка ничего не пропустила;
+   * restored — вернули после него, то есть был перерыв в оплате.
+   */
   type: {
     type: String,
     required: true,
-    enum: ['created', 'updated', 'archived', 'restored', 'deleted']
+    enum: ['created', 'updated', 'archived', 'returned', 'restored', 'deleted']
   },
   /**
    * Что именно изменилось: { cost: { from: 299, to: 399 }, cycle: {...} }.

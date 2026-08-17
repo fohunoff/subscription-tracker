@@ -37,3 +37,31 @@ export const getMonthlyCostInBase = (subscription, rates, baseCurrency) =>
  */
 export const getAnnualCostInBase = (subscription, rates, baseCurrency) =>
   convert(getAnnualCost(subscription), subscription.currency, rates, baseCurrency);
+
+/**
+ * Месячные и годовые суммы, разложенные по валютам подписок.
+ * Зеркало getTotalsByCurrency из src/shared/utils/currency.js.
+ *
+ * Единственное законное сложение сырых стоимостей: суммируем внутри одной
+ * валюты, курсы не участвуют — в отличие от итога в базовой валюте, эти числа
+ * не меняются от того, каким сегодня пришёл курс.
+ *
+ * Порядок — алфавитный по коду валюты.
+ */
+export const getTotalsByCurrency = (subscriptions = []) => {
+  const totals = new Map();
+
+  for (const subscription of subscriptions) {
+    const currency = subscription.currency || DEFAULT_BASE_CURRENCY;
+    const current = totals.get(currency) || { monthly: 0, annual: 0, count: 0 };
+    totals.set(currency, {
+      monthly: current.monthly + getMonthlyCost(subscription),
+      annual: current.annual + getAnnualCost(subscription),
+      count: current.count + 1
+    });
+  }
+
+  return [...totals.entries()]
+    .map(([currency, sums]) => ({ currency, ...sums }))
+    .sort((a, b) => a.currency.localeCompare(b.currency));
+};

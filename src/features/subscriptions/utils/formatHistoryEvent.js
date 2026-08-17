@@ -9,7 +9,11 @@ import { getCycleMeta } from '../../../shared/utils/cycle';
 const EVENT_TITLES = {
   created: 'Подписка создана',
   archived: 'Завершена и отправлена в архив',
-  restored: 'Восстановлена из архива',
+  // returned и restored — разные события: первое означает возврат до
+  // ближайшего платежа (перерыва не было), второе — после него.
+  // У записей, сделанных до этого разделения, тип всегда restored.
+  returned: 'Возвращена из архива',
+  restored: 'Восстановлена после перерыва',
   deleted: 'Подписка удалена',
   updated: 'Изменения',
 };
@@ -73,6 +77,36 @@ export const describeChanges = (changes = {}, context = {}) =>
 export const getEventTitle = (event) => EVENT_TITLES[event.type] || event.type;
 
 /**
+ * Пояснения к смене статуса. Формат «было → стало» тут не годится: у архивации
+ * и возврата важна не пара значений, а сам факт — с какой даты подписка
+ * завершена и был ли пропущен платёж.
+ */
+export const describeStatusEvent = (event) => {
+  const { endDate, missedPaymentDate } = event.changes || {};
+  const details = [];
+
+  switch (event.type) {
+    case 'archived':
+      if (endDate?.to) details.push(`Дата окончания: ${formatDay(endDate.to)}`);
+      break;
+    case 'returned':
+      details.push('Вернули до ближайшего платежа — перерыва в оплате не было');
+      if (endDate?.from) details.push(`Была завершена ${formatDay(endDate.from)}`);
+      break;
+    case 'restored':
+      if (missedPaymentDate?.to) {
+        details.push(`Платёж от ${formatDay(missedPaymentDate.to)} был пропущен`);
+      }
+      if (endDate?.from) details.push(`Была завершена ${formatDay(endDate.from)}`);
+      break;
+    default:
+      break;
+  }
+
+  return details;
+};
+
+/**
  * Событие целиком: заголовок, дата и расшифровка изменений.
  */
 export const formatHistoryEvent = (event, context = {}) => ({
@@ -81,4 +115,5 @@ export const formatHistoryEvent = (event, context = {}) => ({
   title: getEventTitle(event),
   date: new Date(event.createdAt),
   changes: event.type === 'updated' ? describeChanges(event.changes, context) : [],
+  details: event.type === 'updated' ? [] : describeStatusEvent(event),
 });

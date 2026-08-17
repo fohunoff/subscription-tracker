@@ -3,6 +3,7 @@ export { default as GoogleLoginButton } from './GoogleLoginButton.jsx';
 export { default as UserMenu } from './UserMenu.jsx';
 export { default as LoginPage } from './LoginPage.jsx';
 export { default as TotalExpenses } from './components/TotalExpenses.jsx';
+export { default as CurrencyBreakdown } from './components/CurrencyBreakdown.jsx';
 export {
   Skeleton,
   SubscriptionListSkeleton,

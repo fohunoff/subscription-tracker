@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import authenticateToken from '../middlewares/authenticateToken.js';
 import Subscription from '../models/Subscription.js';
-import { getMonthlyCostInBase, getAnnualCostInBase } from '../utils/currency.js';
+import { getMonthlyCostInBase, getAnnualCostInBase, getTotalsByCurrency } from '../utils/currency.js';
 import { getLatestCurrencyRates } from '../services/currencyService.js';
 
 const router = Router();
@@ -38,6 +38,10 @@ router.get('/', authenticateToken, async (req, res) => {
         acc[sub.currency] = (acc[sub.currency] || 0) + 1;
         return acc;
       }, {}),
+      // Итог в базовой валюте зависит от сегодняшнего курса; разбивка — нет,
+      // это суммы, которые действительно списываются. byCurrency оставлен как
+      // был (количество подписок) — на него могли завязаться потребители.
+      totalsByCurrency: getTotalsByCurrency(subscriptions),
       byCycle: subscriptions.reduce((acc, sub) => {
         acc[sub.cycle] = (acc[sub.cycle] || 0) + 1;
         return acc;

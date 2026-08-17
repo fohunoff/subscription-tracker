@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { formatCurrency } from '../utils';
 import { getNextPaymentDate } from '../utils/cycle';
 import { getMonthlyCostInBase } from '../utils/currency';
+import CurrencyBreakdown from './CurrencyBreakdown';
 
 const TotalExpenses = ({
   subscriptions,
@@ -96,6 +97,14 @@ const TotalExpenses = ({
         <p className="text-4xl font-bold text-brand-primary mb-2">
           {formatCurrency(totalMonthlyCost, baseCurrency)}
         </p>
+
+        {/* Из чего сложился итог: суммы в валютах самих подписок, без курса */}
+        <CurrencyBreakdown
+          subscriptions={subscriptions}
+          baseCurrency={baseCurrency}
+          className="text-sm text-slate-500 dark:text-slate-400 mb-2"
+        />
+
         <p className="text-sm text-slate-500 dark:text-slate-400">
           {isFiltered && totalCount !== null
             ? `Найдено подписок: ${subscriptions.length} из ${totalCount}`

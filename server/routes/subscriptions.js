@@ -2,7 +2,7 @@ import { Router } from 'express';
 import Subscription from '../models/Subscription.js';
 import Category from '../models/Category.js';
 import { validateSubscriptionData } from '../utils/index.js';
-import { isValidCycle, CYCLE_VALUES } from '../utils/cycle.js';
+import { isValidCycle, CYCLE_VALUES, getNextPaymentDateAfter } from '../utils/cycle.js';
 import {
   logSubscriptionEvent,
   logSubscriptionUpdate,
@@ -266,8 +266,12 @@ router.patch('/:id/archive', authenticateToken, async (req, res) => {
       return res.status(400).json({ message: 'Некорректная дата окончания' });
     }
 
+    const previousEndDate = subscription.endDate;
+
     subscription.status = 'archived';
     subscription.archivedAt = new Date();
+    // Перенос в архив — это и есть дата окончания подписки. Уже заданную
+    // (пользователь мог указать её заранее) не перебиваем.
     subscription.endDate = subscription.endDate || finishedAt;
     // Уведомления по архивной подписке не нужны, но исходную настройку
     // не трём — она понадобится при восстановлении.
@@ -277,7 +281,12 @@ router.patch('/:id/archive', authenticateToken, async (req, res) => {
       userId: req.userDoc._id,
       subscription,
       type: 'archived',
-      changes: { endDate: { from: null, to: subscription.endDate.toISOString() } }
+      changes: {
+        endDate: {
+          from: previousEndDate ? new Date(previousEndDate).toISOString() : null,
+          to: subscription.endDate.toISOString()
+        }
+      }
     });
 
     res.json({
@@ -291,7 +300,19 @@ router.patch('/:id/archive', authenticateToken, async (req, res) => {
   }
 });
 
-// Восстановление подписки из архива со всеми прежними настройками
+/**
+ * Возврат подписки из архива со всеми прежними настройками.
+ *
+ * Различаем два случая, и разница не косметическая: если подписку вернули
+ * раньше, чем наступил бы первый платёж после её завершения, — она ничего не
+ * пропустила, это тот же непрерывный период («вернули»). Если платёж успел
+ * пройти мимо — в оплате был перерыв, и это восстановление подписки после
+ * паузы; такую разницу должна показывать и история, и статистика трат.
+ *
+ * Даты платежей при этом намеренно не сдвигаются: сервер не знает, возобновил
+ * пользователь старую подписку или оформил заново, — правку даты оставляем ему,
+ * а в ответе подсказываем, что платёж был пропущен.
+ */
 router.patch('/:id/restore', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -304,6 +325,15 @@ router.patch('/:id/restore', authenticateToken, async (req, res) => {
       return res.status(400).json({ message: 'Подписка не в архиве' });
     }
 
+    // Дата окончания — основной ориентир; archivedAt подстраховывает подписки
+    // из категорий без напоминаний, где endDate могло не быть.
+    const finishedAt = subscription.endDate || subscription.archivedAt;
+    const paymentAfterEnd = finishedAt ? getNextPaymentDateAfter(subscription, finishedAt) : null;
+    // Платежа могло не быть вовсе (категория без дат) — тогда пропускать нечего
+    const isReturn = !paymentAfterEnd || new Date() < paymentAfterEnd;
+
+    const previousEndDate = subscription.endDate;
+
     subscription.status = 'active';
     subscription.archivedAt = undefined;
     subscription.endDate = undefined;
@@ -312,13 +342,28 @@ router.patch('/:id/restore', authenticateToken, async (req, res) => {
     await logSubscriptionEvent({
       userId: req.userDoc._id,
       subscription,
-      type: 'restored'
+      type: isReturn ? 'returned' : 'restored',
+      changes: {
+        // Событие возврата должно нести дату, с которой подписка была
+        // завершена: сама endDate только что стёрта, и без лога она теряется.
+        endDate: {
+          from: previousEndDate ? new Date(previousEndDate).toISOString() : null,
+          to: null
+        },
+        ...(isReturn
+          ? {}
+          : { missedPaymentDate: { from: null, to: paymentAfterEnd.toISOString() } })
+      }
     });
 
     res.json({
       success: true,
       subscription: formatSubscription(subscription),
-      message: `Подписка "${subscription.name}" восстановлена`
+      restoreType: isReturn ? 'returned' : 'restored',
+      missedPaymentDate: isReturn ? null : paymentAfterEnd.toISOString(),
+      message: isReturn
+        ? `Подписка "${subscription.name}" возвращена из архива`
+        : `Подписка "${subscription.name}" восстановлена после перерыва`
     });
   } catch (error) {
     console.error('Ошибка восстановления подписки:', error);

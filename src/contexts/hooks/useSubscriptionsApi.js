@@ -49,7 +49,9 @@ export function useSubscriptionsApi(API_URL, token) {
       return data.subscription;
     };
 
-    // Вернуть подписку из архива
+    // Вернуть подписку из архива. Кроме самой подписки сервер сообщает, был ли
+    // пропущен платёж: restoreType — 'returned' (вернули до платежа) или
+    // 'restored' (вернули после, значит был перерыв).
     const restoreSubscription = async (id) => {
       const response = await fetch(`${API_URL}/subscriptions/${id}/restore`, {
         method: 'PATCH',
@@ -62,7 +64,11 @@ export function useSubscriptionsApi(API_URL, token) {
       }
 
       const data = await response.json();
-      return data.subscription;
+      return {
+        subscription: data.subscription,
+        restoreType: data.restoreType,
+        missedPaymentDate: data.missedPaymentDate
+      };
     };
 
     // История изменений подписки

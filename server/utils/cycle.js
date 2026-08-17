@@ -49,17 +49,49 @@ export const getPaymentDateInMonth = (subscription, month, year) => {
   return new Date(year, month, paymentDay);
 };
 
-export const getNextPaymentDate = (subscription) => {
-  if (!subscription.fullPaymentDate) return null;
-
+/**
+ * Первый платёж строго после указанной даты.
+ *
+ * Отдельно от getNextPaymentDate, потому что нужен не только «следующий от
+ * сегодня»: при возврате из архива важно, наступил ли платёж после даты
+ * завершения подписки — от этого зависит, вернули её или восстанавливают
+ * после перерыва.
+ *
+ * В отличие от getNextPaymentDate умеет считать и от одного дня месяца:
+ * у ежемесячных подписок, заведённых до появления fullPaymentDate, полной даты
+ * нет вовсе, а ответ «платежей не бывает» здесь означал бы неверный вывод.
+ */
+export const getNextPaymentDateAfter = (subscription, from) => {
   const { months } = getCycleMeta(subscription.cycle);
-  const today = new Date();
-  const nextDate = new Date(subscription.fullPaymentDate);
+  const after = new Date(from);
+  if (isNaN(after.getTime())) return null;
 
+  if (!subscription.fullPaymentDate) {
+    if (!subscription.paymentDay) return null;
+
+    const candidate = new Date(after.getFullYear(), after.getMonth(), subscription.paymentDay);
+    // Шаг в длину цикла: для квартальных без полной даты месяцы списания
+    // всё равно неизвестны, но такие подписки не проходят валидацию.
+    while (candidate <= after) {
+      candidate.setMonth(candidate.getMonth() + months);
+    }
+    return candidate;
+  }
+
+  const nextDate = new Date(subscription.fullPaymentDate);
   // Шаг в месяцах: setMonth сам переносит через границу года.
-  while (nextDate <= today) {
+  while (nextDate <= after) {
     nextDate.setMonth(nextDate.getMonth() + months);
   }
 
   return nextDate;
+};
+
+export const getNextPaymentDate = (subscription) => {
+  // Без полной даты платежа считать нечего: уведомления и расписание опираются
+  // именно на неё. Поведение сохранено намеренно — getNextPaymentDateAfter
+  // с фолбэком на paymentDay используется только там, где он уместен.
+  if (!subscription.fullPaymentDate) return null;
+
+  return getNextPaymentDateAfter(subscription, new Date());
 };

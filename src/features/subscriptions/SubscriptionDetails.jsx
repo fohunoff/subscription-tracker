@@ -219,7 +219,17 @@ function SubscriptionDetails({
                         ))}
                       </ul>
                     ) : (
-                      <span className="text-slate-600 dark:text-slate-300">{event.title}</span>
+                      <>
+                        <span className="text-slate-600 dark:text-slate-300">{event.title}</span>
+                        {event.details.map((detail) => (
+                          <span
+                            key={detail}
+                            className="block text-xs text-slate-400 dark:text-slate-500"
+                          >
+                            {detail}
+                          </span>
+                        ))}
+                      </>
                     )}
                   </div>
                 </li>

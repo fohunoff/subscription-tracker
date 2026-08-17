@@ -85,13 +85,29 @@ export function useSubscriptions(api, showToast) {
     }
   }, [api, showToast]);
 
+  // Возврат из архива бывает двух видов: до ближайшего платежа подписка ничего
+  // не пропустила, после — был перерыв в оплате, и даты платежей сервер
+  // намеренно не сдвигает. Во втором случае говорим об этом прямо, иначе
+  // пользователь не заметит, что ближайший платёж считается по старому циклу.
   const restoreSubscription = useCallback(async (id) => {
     if (!api) return;
     try {
-      const restored = await api.restoreSubscription(id);
+      const { subscription: restored, restoreType, missedPaymentDate } = await api.restoreSubscription(id);
       setArchivedSubscriptions(prev => prev.filter(sub => sub.id !== id));
       setSubscriptions(prev => [...prev, restored]);
-      showToast && showToast(`Подписка "${restored.name}" восстановлена`, 'success');
+
+      if (restoreType === 'restored') {
+        const missed = missedPaymentDate
+          ? new Date(missedPaymentDate).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
+          : null;
+        showToast && showToast(
+          `Подписка "${restored.name}" восстановлена после перерыва` +
+          (missed ? `: платёж от ${missed} был пропущен — проверьте дату платежа` : ''),
+          'success'
+        );
+      } else {
+        showToast && showToast(`Подписка "${restored.name}" возвращена из архива`, 'success');
+      }
     } catch (error) {
       console.error('Ошибка восстановления подписки:', error);
       showToast && showToast(error.message || 'Ошибка восстановления подписки', 'error');

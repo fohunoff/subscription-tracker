@@ -30,3 +30,27 @@ export const getMonthlyCostInBase = (subscription, currencyRates = {}, baseCurre
   const rateToBase = currencyRates[baseCurrency] || 1;
   return (getMonthlyCost(subscription) * rate) / rateToBase;
 };
+
+/**
+ * Месячные суммы, разложенные по валютам подписок: «4000 RSD / 32000 RUB».
+ *
+ * Единственное место, где сырые `getMonthlyCost` складываются напрямую, и это
+ * законно: суммируем только внутри одной валюты, курсы не участвуют вовсе.
+ * Пересчёт в базовую валюту зависит от курса на сегодня, а такая разбивка —
+ * нет: она показывает, сколько списывается по каждой валюте на самом деле.
+ *
+ * Порядок валют — алфавитный по коду, чтобы строка не переставлялась при
+ * добавлении и удалении подписок.
+ */
+export const getTotalsByCurrency = (subscriptions = []) => {
+  const totals = new Map();
+
+  subscriptions.forEach((subscription) => {
+    const currency = subscription.currency || DEFAULT_CURRENCY;
+    totals.set(currency, (totals.get(currency) || 0) + getMonthlyCost(subscription));
+  });
+
+  return [...totals.entries()]
+    .map(([currency, monthly]) => ({ currency, monthly }))
+    .sort((a, b) => a.currency.localeCompare(b.currency));
+};

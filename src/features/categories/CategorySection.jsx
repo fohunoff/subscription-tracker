@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, forwardRef } from 'react';
 import { PlusIcon, PencilSquareIcon, TrashIcon, ChevronDownIcon, Bars3BottomLeftIcon, CalendarDaysIcon } from '@heroicons/react/24/outline';
 import { SubscriptionList } from '../subscriptions';
-import { SubscriptionListSkeleton } from '../../shared';
+import { SubscriptionListSkeleton, CurrencyBreakdown } from '../../shared';
 import { formatCurrency } from '../../shared/utils';
 import { getMonthlyCostInBase } from '../../shared/utils/currency';
 
@@ -151,6 +151,11 @@ const CategorySection = forwardRef(function CategorySection({
               <p className="text-2xl font-bold" style={{ color: category.color }}>
                 {formatCurrency(totalInBaseCurrency, baseCurrency)}
               </p>
+              <CurrencyBreakdown
+                subscriptions={categorySubscriptions}
+                baseCurrency={baseCurrency}
+                className="text-sm text-slate-500 dark:text-slate-400"
+              />
             </div>
           )}
 
