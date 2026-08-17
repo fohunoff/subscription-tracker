@@ -162,6 +162,29 @@ export const isLastPayment = (subscription, paymentDate) => {
   return !next || next > endOfDay(subscription.endDate);
 };
 
+// Защита от бесконечного шага по циклу, если в данных окажется что-то странное.
+// 240 месячных платежей — двадцать лет, дальше явно ошибка, а не подписка.
+const MAX_PAYMENTS_IN_RANGE = 240;
+
+/**
+ * Даты платежей в интервале (after, until] — те, что уже случились, но ещё
+ * не записаны в лог. За границей срока действия платежей нет, поэтому обход
+ * останавливается на дате окончания.
+ */
+export const getPaymentDatesBetween = (subscription, after, until) => {
+  const dates = [];
+
+  let date = getNextPaymentDateAfter(subscription, after);
+
+  while (date && date <= until && isWithinTerm(subscription, date)) {
+    dates.push(new Date(date));
+    if (dates.length >= MAX_PAYMENTS_IN_RANGE) break;
+    date = getNextPaymentDateAfter(subscription, date);
+  }
+
+  return dates;
+};
+
 export const getNextPaymentDate = (subscription) => {
   // Без полной даты платежа считать нечего: уведомления и расписание опираются
   // именно на неё. Поведение сохранено намеренно — getNextPaymentDateAfter

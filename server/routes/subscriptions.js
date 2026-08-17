@@ -8,6 +8,7 @@ import {
   logSubscriptionUpdate,
   getSubscriptionHistory
 } from '../services/subscriptionEvents.js';
+import { logDuePayments } from '../services/subscriptionLifecycle.js';
 import authenticateToken from '../middlewares/authenticateToken.js';
 
 const router = Router();
@@ -123,7 +124,11 @@ router.post('/', authenticateToken, async (req, res) => {
 
     const newSubscription = await Subscription.create({
       userId: req.userDoc._id,
-      ...subscriptionData
+      ...subscriptionData,
+      // Автоматически в лог попадают только платежи, случившиеся после того,
+      // как подписку завели: у списаний до этого момента неизвестна тогдашняя
+      // цена, и восстанавливать их — дело отдельного бэкфилла.
+      paymentsLoggedThrough: new Date()
     });
 
     await logSubscriptionEvent({
@@ -301,6 +306,10 @@ router.patch('/:id/archive', authenticateToken, async (req, res) => {
 
     const previousEndDate = subscription.endDate;
 
+    // Списания, случившиеся до архивации, должны попасть в историю: планировщик
+    // ходит раз в час и мог не успеть, а архивную подписку он уже не обойдёт.
+    await logDuePayments(subscription);
+
     subscription.status = 'archived';
     subscription.archivedAt = new Date();
     // Перенос в архив — это и есть дата окончания подписки. Уже заданную
@@ -373,6 +382,9 @@ router.patch('/:id/restore', authenticateToken, async (req, res) => {
     // Срока больше нет — прежняя отметка об обработке окончания не должна
     // мешать, если пользователь задаст новую дату
     subscription.endHandledAt = undefined;
+    // Пока подписка лежала в архиве, списаний не было: сдвигаем границу учёта
+    // платежей на сегодня, иначе планировщик записал бы платежи за время архива
+    subscription.paymentsLoggedThrough = new Date();
     await subscription.save();
 
     await logSubscriptionEvent({
