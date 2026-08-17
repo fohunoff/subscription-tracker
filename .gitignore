@@ -27,6 +27,11 @@ dist-ssr
 # deploy.sh под правило не подпадает — секретов он не содержит, читает их из server/.env
 backup*.sh
 
+# Скриншоты и профиль браузера от проверок вёрстки через Playwright —
+# рабочий мусор, в репозитории не нужны
+.playwright-mcp/
+chart-light.png
+
 # Environment variables
 .env
 .env.local
