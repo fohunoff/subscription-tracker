@@ -7,7 +7,8 @@ import {
   ArchivedSubscriptions,
   FlatSubscriptionList,
   SubscriptionsToolbar,
-  SubscriptionDetails
+  SubscriptionDetails,
+  SubscriptionDetailsActions
 } from './features/subscriptions';
 import { ExportData } from './features/telegram';
 import { SpendingSection, useSpending } from './features/stats';
@@ -579,6 +580,16 @@ function AppContent() {
         isOpen={!!detailsSubscription}
         onClose={closeDetails}
         title={detailsSubscription?.name || 'Подписка'}
+        footer={
+          detailsSubscription && (
+            <SubscriptionDetailsActions
+              subscription={detailsSubscription}
+              onEdit={handleEditFromDetails}
+              onArchive={handleArchiveFromDetails}
+              onDelete={handleDeleteFromDetails}
+            />
+          )
+        }
       >
         {detailsSubscription && (
           <SubscriptionDetails
@@ -587,9 +598,6 @@ function AppContent() {
             currencyRates={currencyRates}
             baseCurrency={baseCurrency}
             onLoadHistory={api.getSubscriptionHistory}
-            onEdit={handleEditFromDetails}
-            onArchive={handleArchiveFromDetails}
-            onDelete={handleDeleteFromDetails}
           />
         )}
       </Drawer>

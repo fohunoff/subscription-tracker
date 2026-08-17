@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { XMarkIcon } from '@heroicons/react/24/solid';
+import { useBodyScrollLock } from './hooks';
 
 /**
  * Боковая панель, выезжающая справа.
@@ -11,18 +12,20 @@ import { XMarkIcon } from '@heroicons/react/24/solid';
  * экрана, заголовок и действия закреплены, а прокручивается только содержимое.
  */
 const Drawer = ({ isOpen, onClose, title, children, footer }) => {
+  // Прокрутка фона блокируется с компенсацией ширины скроллбара — иначе
+  // страница подпрыгивает вбок при открытии и закрытии панели
+  useBodyScrollLock(isOpen);
+
   useEffect(() => {
     const handleEscape = (event) => {
       if (event.key === 'Escape') onClose();
     };
 
     if (isOpen) {
-      document.body.style.overflow = 'hidden';
       document.addEventListener('keydown', handleEscape);
     }
 
     return () => {
-      document.body.style.overflow = 'unset';
       document.removeEventListener('keydown', handleEscape);
     };
   }, [isOpen, onClose]);
@@ -38,7 +41,7 @@ const Drawer = ({ isOpen, onClose, title, children, footer }) => {
       aria-labelledby="drawer-title"
     >
       <div
-        className="absolute inset-y-0 right-0 w-full sm:max-w-md bg-white dark:bg-slate-800 shadow-2xl flex flex-col animate-drawerShow"
+        className="absolute inset-y-0 right-0 w-full sm:max-w-lg lg:max-w-2xl bg-white dark:bg-slate-800 shadow-2xl flex flex-col animate-drawerShow"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-3 p-5 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">

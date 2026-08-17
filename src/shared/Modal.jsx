@@ -1,8 +1,13 @@
 import React, { useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { XMarkIcon } from '@heroicons/react/24/solid';
+import { useBodyScrollLock } from './hooks';
 
 const Modal = ({ isOpen, onClose, title, children }) => {
+  // Прокрутка фона блокируется с компенсацией ширины скроллбара — иначе
+  // страница подпрыгивает вбок при открытии и закрытии окна
+  useBodyScrollLock(isOpen);
+
   useEffect(() => {
     const handleEscape = (event) => {
       if (event.key === 'Escape') {
@@ -11,12 +16,10 @@ const Modal = ({ isOpen, onClose, title, children }) => {
     };
 
     if (isOpen) {
-      document.body.style.overflow = 'hidden'; // Предотвращаем прокрутку фона
       document.addEventListener('keydown', handleEscape);
     }
 
     return () => {
-      document.body.style.overflow = 'unset';
       document.removeEventListener('keydown', handleEscape);
     };
   }, [isOpen, onClose]);

@@ -1,11 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import {
-  PencilSquareIcon,
-  ArchiveBoxIcon,
-  TrashIcon,
-  BellIcon,
-  BellSlashIcon
-} from '@heroicons/react/24/outline';
+import { BellIcon, BellSlashIcon } from '@heroicons/react/24/outline';
 import { formatCurrency } from '../../shared/utils';
 import {
   getCycleMeta,
@@ -46,16 +40,16 @@ const daysUntilText = (date) => {
 /**
  * Детальная карточка подписки: сводка по цифрам и датам + история изменений
  * из лога (GET /api/subscriptions/:id/history).
+ *
+ * Кнопки действий живут отдельно — в `SubscriptionDetailsActions`, который
+ * рендерится в закреплённом футере панели.
  */
 function SubscriptionDetails({
   subscription,
   categories = [],
   currencyRates = {},
   baseCurrency = 'RUB',
-  onLoadHistory,
-  onEdit,
-  onArchive,
-  onDelete
+  onLoadHistory
 }) {
   const [history, setHistory] = useState([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
@@ -149,17 +143,16 @@ function SubscriptionDetails({
         )}
       </div>
 
-      {/* Даты и уведомления */}
+      {/* Даты по ходу жизни подписки: старт → окончание → ближайшее списание.
+          Ближайший платёж вынесен из списка в акцентный блок — это единственная
+          дата, ради которой панель открывают чаще всего */}
       <div className="divide-y divide-slate-200 dark:divide-slate-700">
-        {nextPayment && !isArchived && (
+        {/* Дата старта: от неё считаются все платежи, включая восстановленные
+            бэкфиллом, — без неё непонятно, откуда в истории взялся первый */}
+        {subscription.fullPaymentDate && (
           <div className={rowClass}>
-            <span className={labelClass}>Ближайший платёж</span>
-            <span className={valueClass}>
-              {formatFullDate(nextPayment)}
-              <span className="block text-xs font-normal text-slate-400 dark:text-slate-500">
-                {daysUntilText(nextPayment)}
-              </span>
-            </span>
+            <span className={labelClass}>Первый платёж</span>
+            <span className={valueClass}>{formatFullDate(new Date(subscription.fullPaymentDate))}</span>
           </div>
         )}
 
@@ -167,15 +160,6 @@ function SubscriptionDetails({
           <div className={rowClass}>
             <span className={labelClass}>День оплаты</span>
             <span className={valueClass}>{subscription.paymentDay} число</span>
-          </div>
-        )}
-
-        {/* Дата старта: от неё считаются все платежи, включая восстановленные
-            бэкфиллом, — без неё непонятно, откуда в истории взялся первый */}
-        {subscription.fullPaymentDate && (
-          <div className={rowClass}>
-            <span className={labelClass}>Первый платёж</span>
-            <span className={valueClass}>{formatFullDate(new Date(subscription.fullPaymentDate))}</span>
           </div>
         )}
 
@@ -208,7 +192,21 @@ function SubscriptionDetails({
             <span className={valueClass}>{formatFullDate(lastPayment)}</span>
           </div>
         )}
+      </div>
 
+      {nextPayment && !isArchived && (
+        <div className="flex items-baseline justify-between gap-4 rounded-lg border border-brand-primary/30 bg-brand-primary/5 dark:bg-brand-primary/10 px-4 py-3">
+          <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Ближайший платёж</span>
+          <span className="text-right">
+            <span className="text-base font-semibold text-brand-primary">{formatFullDate(nextPayment)}</span>
+            <span className="block text-xs text-slate-500 dark:text-slate-400">
+              {daysUntilText(nextPayment)}
+            </span>
+          </span>
+        </div>
+      )}
+
+      <div className="divide-y divide-slate-200 dark:divide-slate-700">
         <div className={rowClass}>
           <span className={labelClass}>Уведомления</span>
           <span className={`${valueClass} flex items-center gap-1.5 justify-end`}>
@@ -227,14 +225,15 @@ function SubscriptionDetails({
             )}
           </span>
         </div>
-
-        {subscription.createdAt && (
-          <div className={rowClass}>
-            <span className={labelClass}>Добавлена</span>
-            <span className={valueClass}>{formatFullDate(new Date(subscription.createdAt))}</span>
-          </div>
-        )}
       </div>
+
+      {/* Дата добавления в трекер ничего не говорит о самой подписке —
+          мелкой подписью, а не строкой наравне с датами платежей */}
+      {subscription.createdAt && (
+        <p className="text-xs text-slate-400 dark:text-slate-500">
+          Добавлена в трекер {formatFullDate(new Date(subscription.createdAt))}
+        </p>
+      )}
 
       {/* История изменений */}
       <div>
@@ -298,38 +297,6 @@ function SubscriptionDetails({
             Показать всю историю ({history.length})
           </button>
         )}
-      </div>
-
-      {/* Действия */}
-      <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-200 dark:border-slate-700">
-        <button
-          type="button"
-          onClick={() => onEdit(subscription)}
-          className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md text-sky-700 bg-sky-50 hover:bg-sky-100 dark:bg-sky-900/20 dark:text-sky-300 dark:hover:bg-sky-900/40 transition-colors"
-        >
-          <PencilSquareIcon className="h-4 w-4" />
-          Редактировать
-        </button>
-
-        {!isArchived && (
-          <button
-            type="button"
-            onClick={() => onArchive(subscription)}
-            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md text-amber-700 bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-300 dark:hover:bg-amber-900/40 transition-colors"
-          >
-            <ArchiveBoxIcon className="h-4 w-4" />
-            Завершить
-          </button>
-        )}
-
-        <button
-          type="button"
-          onClick={() => onDelete(subscription)}
-          className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md text-red-700 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-300 dark:hover:bg-red-900/40 transition-colors ml-auto"
-        >
-          <TrashIcon className="h-4 w-4" />
-          Удалить
-        </button>
       </div>
     </div>
   );

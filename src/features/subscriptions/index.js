@@ -5,3 +5,4 @@ export { default as ArchivedSubscriptions } from './ArchivedSubscriptions.jsx';
 export { default as FlatSubscriptionList } from './FlatSubscriptionList.jsx';
 export { default as SubscriptionsToolbar } from './SubscriptionsToolbar.jsx';
 export { default as SubscriptionDetails } from './SubscriptionDetails.jsx';
+export { default as SubscriptionDetailsActions } from './SubscriptionDetailsActions.jsx';
