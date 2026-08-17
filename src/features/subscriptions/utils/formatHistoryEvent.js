@@ -85,7 +85,7 @@ export const getEventTitle = (event) => EVENT_TITLES[event.type] || event.type;
  * завершена и был ли пропущен платёж.
  */
 export const describeStatusEvent = (event) => {
-  const { endDate, missedPaymentDate, amount, currency, paidAt, isLast, archived } = event.changes || {};
+  const { endDate, missedPaymentDate, amount, currency, paidAt, isLast, archived, estimated } = event.changes || {};
   const details = [];
 
   switch (event.type) {
@@ -96,6 +96,8 @@ export const describeStatusEvent = (event) => {
           .join(' — ')
       );
       if (isLast) details.push('Последний платёж по подписке');
+      // Восстановлено бэкфиллом по логу изменений, а не наблюдалось приложением
+      if (estimated) details.push('Оценка по истории изменений');
       break;
     case 'ended':
       if (endDate?.to) details.push(`Дата окончания: ${formatDay(endDate.to)}`);

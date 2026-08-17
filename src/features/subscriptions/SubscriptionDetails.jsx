@@ -16,6 +16,9 @@ import {
 import { getMonthlyCostInBase } from '../../shared/utils/currency';
 import { formatHistoryEvent } from './utils/formatHistoryEvent';
 
+// Сколько записей истории показывать до нажатия «показать всю»
+const HISTORY_PREVIEW_SIZE = 12;
+
 const formatFullDate = (date) =>
   date ? date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) : null;
 
@@ -57,6 +60,9 @@ function SubscriptionDetails({
   const [history, setHistory] = useState([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [historyError, setHistoryError] = useState(null);
+  // Платежи пишутся в лог автоматически, поэтому у давней подписки история —
+  // это десятки записей. Показываем последние, остальное по требованию.
+  const [showAllHistory, setShowAllHistory] = useState(false);
 
   // Методы api пересоздаются на каждом рендере AuthContext, поэтому держим
   // колбэк в ref: иначе эффект перезапрашивал бы историю при любом рендере
@@ -236,7 +242,7 @@ function SubscriptionDetails({
           </p>
         ) : (
           <ul className="space-y-3">
-            {history.map((rawEvent) => {
+            {(showAllHistory ? history : history.slice(0, HISTORY_PREVIEW_SIZE)).map((rawEvent) => {
               const event = formatHistoryEvent(rawEvent, { categories });
               return (
                 <li key={event.id} className="flex gap-3 text-sm">
@@ -272,6 +278,16 @@ function SubscriptionDetails({
               );
             })}
           </ul>
+        )}
+
+        {!isLoadingHistory && !showAllHistory && history.length > HISTORY_PREVIEW_SIZE && (
+          <button
+            type="button"
+            onClick={() => setShowAllHistory(true)}
+            className="mt-3 text-sm text-brand-primary hover:underline"
+          >
+            Показать всю историю ({history.length})
+          </button>
         )}
       </div>
 
