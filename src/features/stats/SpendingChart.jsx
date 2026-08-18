@@ -17,8 +17,10 @@ const ACCENT = '#3B82F6';
 const ESTIMATED_LIGHT = '#64748B';
 const ESTIMATED_DARK = '#94A3B8';
 
-// padLeft вмещает самую широкую подпись оси («20 тыс. ₽»): при меньшем
-// отступе она обрезалась левым краем
+// padLeft здесь — только минимум: фактический отступ считается по самой широкой
+// подписи оси (см. useMemo ниже). С жёсткой константой «150 тыс. RSD» упиралась
+// в левый край viewBox и обрезалась до «50 тыс. RSD» — верх шкалы читался втрое
+// меньше реального
 const VIEW = { width: 720, height: 240, padTop: 24, padBottom: 28, padLeft: 74, padRight: 8 };
 
 // На узких экранах viewBox сужается вместе с экраном, а не масштабируется:
@@ -30,6 +32,12 @@ const MAX_BAR_WIDTH = 24;
 const MAX_BAR_WIDTH_COMPACT = 16;
 const SEGMENT_GAP = 2;
 const CORNER = 4;
+
+// Ширина подписи оси зависит от суммы и валюты: «150 тыс. RSD» почти вдвое
+// шире «20 тыс. ₽». Меряем на глаз — цифра 11px занимает около 6.2 единиц
+// viewBox; DOM-измерения ради отступа не стоят перерисовки.
+const AXIS_CHAR_WIDTH = 6.2;
+const AXIS_LABEL_GAP = 8;
 
 const MONTH_LABELS = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
 
@@ -88,14 +96,23 @@ function SpendingChart({ months, baseCurrency, isDark = false }) {
   const isCompact = useMediaQuery('(max-width: 639px)');
 
   const estimatedColor = isDark ? ESTIMATED_DARK : ESTIMATED_LIGHT;
-  const view = isCompact ? VIEW_COMPACT : VIEW;
   const shortAmount = (value) => (isCompact ? compactPlain(value) : compact(value, baseCurrency));
 
-  const { plotWidth, plotHeight, slotWidth, barWidth, scaleMax, ticks, peakIndex } = useMemo(() => {
-    const width = view.width - view.padLeft - view.padRight;
-    const height = view.height - view.padTop - view.padBottom;
-    const slot = months.length > 0 ? width / months.length : width;
+  const { view, plotWidth, plotHeight, slotWidth, barWidth, scaleMax, ticks, peakIndex } = useMemo(() => {
+    const base = isCompact ? VIEW_COMPACT : VIEW;
+    const height = base.height - base.padTop - base.padBottom;
     const max = niceCeil(Math.max(...months.map(m => m.total), 0));
+    const axisTicks = [0, max / 2, max];
+
+    // Отступ под ось — по самой длинной подписи, а не по константе:
+    // разрядность суммы и длина кода валюты заранее не известны
+    const widest = Math.max(
+      ...axisTicks.map(tick => (isCompact ? compactPlain(tick) : compact(tick, baseCurrency)).length)
+    );
+    const padLeft = Math.max(base.padLeft, widest * AXIS_CHAR_WIDTH + AXIS_LABEL_GAP);
+
+    const width = base.width - padLeft - base.padRight;
+    const slot = months.length > 0 ? width / months.length : width;
 
     const peak = months.reduce(
       (best, month, index) => (month.total > (months[best]?.total ?? -1) ? index : best),
@@ -103,16 +120,17 @@ function SpendingChart({ months, baseCurrency, isDark = false }) {
     );
 
     return {
+      view: { ...base, padLeft },
       plotWidth: width,
       plotHeight: height,
       slotWidth: slot,
       // Столбец не занимает слот целиком: остаток — воздух, а не поле для заливки
       barWidth: Math.min(isCompact ? MAX_BAR_WIDTH_COMPACT : MAX_BAR_WIDTH, slot * 0.6),
       scaleMax: max,
-      ticks: [0, max / 2, max],
+      ticks: axisTicks,
       peakIndex: peak
     };
-  }, [months, view, isCompact]);
+  }, [months, isCompact, baseCurrency]);
 
   const y = (value) => view.padTop + plotHeight - (value / scaleMax) * plotHeight;
 

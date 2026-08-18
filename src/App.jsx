@@ -47,7 +47,7 @@ function AppContent() {
   } = useSubscriptions(api, showToast);
 
   // Траты за прошедшие месяцы считаются по логу платежей на сервере
-  const { spending, isLoading: isLoadingSpending, months: spendingMonths, loadSpending } =
+  const { spending, isLoading: isLoadingSpending, period: spendingPeriod, loadSpending } =
     useSpending(api, showToast);
 
   const {
@@ -525,7 +525,7 @@ function AppContent() {
           <SpendingSection
             spending={spending}
             isLoading={isLoadingSpending}
-            months={spendingMonths}
+            period={spendingPeriod}
             onLoad={loadSpending}
             isDark={theme === 'dark'}
           />

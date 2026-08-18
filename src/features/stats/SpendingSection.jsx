@@ -3,17 +3,27 @@ import { ChartBarIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import { formatCurrency } from '../../shared/utils';
 import { Skeleton } from '../../shared';
 import SpendingChart from './SpendingChart';
-import { PERIOD_OPTIONS } from './hooks/useSpending';
+import { ALL_TIME, PERIOD_OPTIONS } from './hooks/useSpending';
 
 const MONTH_NAMES = [
   'январь', 'февраль', 'март', 'апрель', 'май', 'июнь',
   'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'
 ];
 
-const fullMonth = (key) => {
+// Родительный падеж — для оборотов «с августа 2024». Именительный там читается
+// как ошибка («с август 2024»), а склонять программно нечего: месяцев двенадцать.
+const MONTH_NAMES_FROM = [
+  'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+  'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'
+];
+
+const monthAndYear = (key, names) => {
   const [year, month] = key.split('-');
-  return `${MONTH_NAMES[Number(month) - 1] || month} ${year}`;
+  return `${names[Number(month) - 1] || month} ${year}`;
 };
+
+const fullMonth = (key) => monthAndYear(key, MONTH_NAMES);
+const fullMonthFrom = (key) => monthAndYear(key, MONTH_NAMES_FROM);
 
 /**
  * «Сколько уже потрачено» — суммы из лога платежей, а не из текущей цены
@@ -22,7 +32,7 @@ const fullMonth = (key) => {
  * Данные грузятся при первом раскрытии — как и архив, блок нужен не всем
  * и не в каждый заход.
  */
-function SpendingSection({ spending, isLoading, months, onLoad, isDark }) {
+function SpendingSection({ spending, isLoading, period, onLoad, isDark }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [showTable, setShowTable] = useState(false);
@@ -30,9 +40,11 @@ function SpendingSection({ spending, isLoading, months, onLoad, isDark }) {
   useEffect(() => {
     if (isExpanded && !hasLoaded) {
       setHasLoaded(true);
-      onLoad(months);
+      onLoad(period);
     }
-  }, [isExpanded, hasLoaded, onLoad, months]);
+  }, [isExpanded, hasLoaded, onLoad, period]);
+
+  const isAllTime = period === ALL_TIME;
 
   const baseCurrency = spending?.baseCurrency || 'RUB';
   const hasPayments = Boolean(spending && spending.paymentsCount > 0);
@@ -68,7 +80,7 @@ function SpendingSection({ spending, isLoading, months, onLoad, isDark }) {
                 type="button"
                 onClick={() => onLoad(option.value)}
                 className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                  months === option.value
+                  period === option.value
                     ? 'bg-brand-primary text-white'
                     : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
                 }`}
@@ -86,7 +98,9 @@ function SpendingSection({ spending, isLoading, months, onLoad, isDark }) {
           ) : !hasPayments ? (
             <div className="text-center py-8">
               <p className="text-slate-500 dark:text-slate-400">
-                За выбранный период платежей не записано.
+                {isAllTime
+                  ? 'Платежей пока не записано.'
+                  : 'За выбранный период платежей не записано.'}
               </p>
               <p className="text-sm text-slate-400 dark:text-slate-500 mt-2">
                 Списания попадают сюда автоматически, начиная с того дня, как подписка
@@ -97,7 +111,12 @@ function SpendingSection({ spending, isLoading, months, onLoad, isDark }) {
             <>
               <div className="mb-6">
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Всего за период
+                  {/* За всё время нижнюю границу выбирал не пользователь, а лог:
+                      период начинается первым записанным платежом — и это
+                      стоит назвать, иначе непонятно, что попало в сумму */}
+                  {isAllTime
+                    ? `За всё время${spending.from ? `, с ${fullMonthFrom(spending.from.slice(0, 7))}` : ''}`
+                    : 'Всего за период'}
                 </p>
                 <p className="text-3xl sm:text-4xl font-bold text-brand-primary">
                   {formatCurrency(spending.total, baseCurrency, 'ru-RU', { maximumFractionDigits: 0 })}
@@ -184,7 +203,7 @@ function SpendingSection({ spending, isLoading, months, onLoad, isDark }) {
               {spending.ratesKnownFrom && (
                 <p className="text-xs text-slate-400 dark:text-slate-500 mt-4">
                   Суммы пересчитаны в {baseCurrency} по курсу на дату платежа.
-                  Курсы известны с {fullMonth(spending.ratesKnownFrom.slice(0, 7))} —
+                  Курсы известны с {fullMonthFrom(spending.ratesKnownFrom.slice(0, 7))} —
                   более ранние платежи считаются по самому раннему известному курсу.
                 </p>
               )}

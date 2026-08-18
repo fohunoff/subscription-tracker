@@ -20,9 +20,12 @@ export function useStatsApi(API_URL, token) {
 
     // Сколько уже потрачено: суммы по месяцам из лога платежей.
     // Период задаётся датами; без них сервер отдаёт последние 12 месяцев.
-    const getSpending = async ({ from, to } = {}) => {
+    // all=1 — «за всё время»: нижнюю границу сервер берёт по первому платежу
+    // в логе, поэтому from в этом режиме не нужен и игнорируется.
+    const getSpending = async ({ from, to, all } = {}) => {
       const params = new URLSearchParams();
-      if (from) params.set('from', from);
+      if (all) params.set('all', '1');
+      else if (from) params.set('from', from);
       if (to) params.set('to', to);
 
       const query = params.toString();

@@ -4,10 +4,16 @@ import { useCallback, useState } from 'react';
  * Сколько уже потрачено — данные считает сервер по логу платежей
  * (GET /api/stats/spending), здесь только загрузка и выбранный период.
  */
+
+// «За всё время» — не число месяцев: где начинается история, знает сервер
+// (по дате первого платежа в логе), клиент только просит этот режим.
+export const ALL_TIME = 'all';
+
 export const PERIOD_OPTIONS = [
   { value: 6, label: '6 месяцев' },
   { value: 12, label: '12 месяцев' },
   { value: 24, label: '2 года' },
+  { value: ALL_TIME, label: 'За всё время' },
 ];
 
 export const DEFAULT_PERIOD = 12;
@@ -25,15 +31,19 @@ const periodStart = (months) => {
 export function useSpending(api, showToast) {
   const [spending, setSpending] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [months, setMonths] = useState(DEFAULT_PERIOD);
+  const [period, setPeriod] = useState(DEFAULT_PERIOD);
 
-  const loadSpending = useCallback(async (periodMonths = DEFAULT_PERIOD) => {
+  const loadSpending = useCallback(async (nextPeriod = DEFAULT_PERIOD) => {
     if (!api) return;
 
     setIsLoading(true);
-    setMonths(periodMonths);
+    setPeriod(nextPeriod);
     try {
-      const data = await api.getSpending({ from: periodStart(periodMonths).toISOString() });
+      const data = await api.getSpending(
+        nextPeriod === ALL_TIME
+          ? { all: true }
+          : { from: periodStart(nextPeriod).toISOString() }
+      );
       setSpending(data);
     } catch (error) {
       console.error('Ошибка загрузки статистики трат:', error);
@@ -43,5 +53,5 @@ export function useSpending(api, showToast) {
     }
   }, [api, showToast]);
 
-  return { spending, isLoading, months, loadSpending };
+  return { spending, isLoading, period, loadSpending };
 }

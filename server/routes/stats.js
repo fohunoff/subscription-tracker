@@ -95,6 +95,11 @@ router.get('/spending', authenticateToken, async (req, res) => {
     const now = new Date();
     const defaultFrom = new Date(now.getFullYear(), now.getMonth() - 11, 1);
 
+    // «За всё время» — период без нижней границы: где он начинается, знает
+    // только лог. Клиент не может подставить дату сам, не угадывая глубину
+    // истории, а запас «лет на десять» дал бы график из пустых столбцов.
+    const allTime = req.query.all === '1' || req.query.all === 'true';
+
     const from = req.query.from ? new Date(req.query.from) : defaultFrom;
     const to = req.query.to ? new Date(req.query.to) : now;
 
@@ -105,7 +110,9 @@ router.get('/spending', authenticateToken, async (req, res) => {
     const events = await SubscriptionEvent.find({
       userId: req.userDoc._id,
       type: 'payment',
-      'changes.paidAt': { $gte: from.toISOString(), $lte: to.toISOString() }
+      'changes.paidAt': allTime
+        ? { $lte: to.toISOString() }
+        : { $gte: from.toISOString(), $lte: to.toISOString() }
     }).lean();
 
     const { rates: latestRates, baseCurrency: ratesCurrency } = await getLatestCurrencyRates();
@@ -119,10 +126,15 @@ router.get('/spending', authenticateToken, async (req, res) => {
 
     let total = 0;
     let estimatedTotal = 0;
+    // Дата первого платежа — начало периода для «за всё время».
+    // paidAt хранится ISO-строкой, поэтому сравнение строк даёт хронологию.
+    let earliestPaidAt = null;
 
     for (const event of events) {
       const { amount, currency, paidAt, estimated } = event.changes || {};
       if (typeof amount !== 'number' || !paidAt) continue;
+
+      if (!earliestPaidAt || paidAt < earliestPaidAt) earliestPaidAt = paidAt;
 
       const rates = ratesHistory.length > 0 ? ratesAtDate(ratesHistory, paidAt) : latestRates;
       const rate = rates[currency] || 1;
@@ -153,9 +165,19 @@ router.get('/spending', authenticateToken, async (req, res) => {
       bySubscription.set(key, subEntry);
     }
 
+    // Период «за всё время» начинается месяцем первого платежа: месяцы до него
+    // пусты по определению и только сжимали бы столбцы с данными.
+    // Если платежей нет вовсе, показываем текущий месяц — пустой график
+    // с осью честнее, чем пустой диапазон.
+    const rangeStart = !allTime
+      ? from
+      : earliestPaidAt
+        ? new Date(earliestPaidAt)
+        : new Date(to.getFullYear(), to.getMonth(), 1);
+
     // Месяцы без платежей тоже нужны: в графике это провалы, а не пропуски
     const months = [];
-    const cursor = new Date(from.getFullYear(), from.getMonth(), 1);
+    const cursor = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1);
     const lastMonth = new Date(to.getFullYear(), to.getMonth(), 1);
     while (cursor <= lastMonth) {
       const key = monthKey(cursor);
@@ -171,7 +193,7 @@ router.get('/spending', authenticateToken, async (req, res) => {
       success: true,
       spending: {
         baseCurrency,
-        from: from.toISOString(),
+        from: rangeStart.toISOString(),
         to: to.toISOString(),
         total,
         estimatedTotal,
