@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { formatCurrency } from '../../shared/utils';
+import { useMediaQuery } from '../../shared/hooks';
 
 /**
  * Траты по месяцам — колонки от общей базовой линии.
@@ -19,7 +20,14 @@ const ESTIMATED_DARK = '#94A3B8';
 // padLeft вмещает самую широкую подпись оси («20 тыс. ₽»): при меньшем
 // отступе она обрезалась левым краем
 const VIEW = { width: 720, height: 240, padTop: 24, padBottom: 28, padLeft: 74, padRight: 8 };
+
+// На узких экранах viewBox сужается вместе с экраном, а не масштабируется:
+// 720 пикселей, сжатые до 340, уменьшали и подписи — 11px превращались
+// в нечитаемые 5px. Пропорции при этом остаются те же, меняется только
+// плотность: столбцы уже, отступ под ось меньше.
+const VIEW_COMPACT = { width: 360, height: 220, padTop: 22, padBottom: 26, padLeft: 46, padRight: 4 };
 const MAX_BAR_WIDTH = 24;
+const MAX_BAR_WIDTH_COMPACT = 16;
 const SEGMENT_GAP = 2;
 const CORNER = 4;
 
@@ -38,6 +46,12 @@ const compact = (value, currency) =>
     notation: 'compact',
     maximumFractionDigits: 1
   }).format(value);
+
+// На узком графике подписи идут без символа валюты: «20 тыс. ₽» не влезало
+// в отступ под ось и обрезалось левым краем, а валюта и так названа в сумме
+// за период над графиком
+const compactPlain = (value) =>
+  new Intl.NumberFormat('ru-RU', { notation: 'compact', maximumFractionDigits: 1 }).format(value);
 
 /**
  * Верх шкалы округляется вверх до «круглого» числа, чтобы подписи оси читались
@@ -71,12 +85,15 @@ const barPath = (x, y, width, height) => {
 
 function SpendingChart({ months, baseCurrency, isDark = false }) {
   const [hovered, setHovered] = useState(null);
+  const isCompact = useMediaQuery('(max-width: 639px)');
 
   const estimatedColor = isDark ? ESTIMATED_DARK : ESTIMATED_LIGHT;
+  const view = isCompact ? VIEW_COMPACT : VIEW;
+  const shortAmount = (value) => (isCompact ? compactPlain(value) : compact(value, baseCurrency));
 
   const { plotWidth, plotHeight, slotWidth, barWidth, scaleMax, ticks, peakIndex } = useMemo(() => {
-    const width = VIEW.width - VIEW.padLeft - VIEW.padRight;
-    const height = VIEW.height - VIEW.padTop - VIEW.padBottom;
+    const width = view.width - view.padLeft - view.padRight;
+    const height = view.height - view.padTop - view.padBottom;
     const slot = months.length > 0 ? width / months.length : width;
     const max = niceCeil(Math.max(...months.map(m => m.total), 0));
 
@@ -90,27 +107,32 @@ function SpendingChart({ months, baseCurrency, isDark = false }) {
       plotHeight: height,
       slotWidth: slot,
       // Столбец не занимает слот целиком: остаток — воздух, а не поле для заливки
-      barWidth: Math.min(MAX_BAR_WIDTH, slot * 0.6),
+      barWidth: Math.min(isCompact ? MAX_BAR_WIDTH_COMPACT : MAX_BAR_WIDTH, slot * 0.6),
       scaleMax: max,
       ticks: [0, max / 2, max],
       peakIndex: peak
     };
-  }, [months]);
+  }, [months, view, isCompact]);
 
-  const y = (value) => VIEW.padTop + plotHeight - (value / scaleMax) * plotHeight;
+  const y = (value) => view.padTop + plotHeight - (value / scaleMax) * plotHeight;
 
   const hasEstimated = months.some(month => month.estimated > 0);
   const hasObserved = months.some(month => month.total - month.estimated > 0.01);
-  // Подписи месяцев начинают сливаться примерно после десятка колонок
-  const labelStep = months.length > 14 ? 3 : months.length > 8 ? 2 : 1;
+  // Подписи месяцев начинают сливаться примерно после десятка колонок,
+  // а на узком графике — уже после полугода
+  const labelStep = isCompact
+    ? (months.length > 12 ? 3 : months.length > 6 ? 2 : 1)
+    : (months.length > 14 ? 3 : months.length > 8 ? 2 : 1);
 
   const hoveredMonth = hovered !== null ? months[hovered] : null;
 
   return (
     <div>
       {/* Значение под курсором — вместо всплывающей подсказки, которая на
-          мобильных всё равно недоступна */}
-      <p className="text-sm text-slate-600 dark:text-slate-300 mb-2 h-5">
+          мобильных всё равно недоступна. Высота держится минимумом, а не
+          фиксируется: на узком экране строка занимает две строки, и жёсткие
+          h-5 срезали бы вторую */}
+      <p className="text-sm text-slate-600 dark:text-slate-300 mb-2 min-h-[1.25rem]">
         {hoveredMonth ? (
           <>
             <span className="font-medium">{monthLabel(hoveredMonth.month, { withYear: true })}</span>
@@ -126,13 +148,15 @@ function SpendingChart({ months, baseCurrency, isDark = false }) {
           </>
         ) : (
           <span className="text-slate-400 dark:text-slate-500">
-            Наведите на столбец, чтобы увидеть месяц
+            {isCompact
+              ? 'Нажмите на столбец, чтобы увидеть месяц'
+              : 'Наведите на столбец, чтобы увидеть месяц'}
           </span>
         )}
       </p>
 
       <svg
-        viewBox={`0 0 ${VIEW.width} ${VIEW.height}`}
+        viewBox={`0 0 ${view.width} ${view.height}`}
         className="w-full h-auto"
         role="img"
         aria-label={`Траты по месяцам в ${baseCurrency}`}
@@ -141,28 +165,28 @@ function SpendingChart({ months, baseCurrency, isDark = false }) {
         {ticks.map((tick) => (
           <g key={tick}>
             <line
-              x1={VIEW.padLeft}
-              x2={VIEW.padLeft + plotWidth}
+              x1={view.padLeft}
+              x2={view.padLeft + plotWidth}
               y1={y(tick)}
               y2={y(tick)}
               className="stroke-slate-200 dark:stroke-slate-700"
               strokeWidth="1"
             />
             <text
-              x={VIEW.padLeft - 8}
+              x={view.padLeft - 8}
               y={y(tick) + 4}
               textAnchor="end"
               className="fill-slate-400 dark:fill-slate-500"
               style={{ fontSize: 11, fontVariantNumeric: 'tabular-nums' }}
             >
-              {compact(tick, baseCurrency)}
+              {shortAmount(tick)}
             </text>
           </g>
         ))}
 
         {months.map((month, index) => {
           const observed = Math.max(month.total - month.estimated, 0);
-          const x = VIEW.padLeft + slotWidth * index + (slotWidth - barWidth) / 2;
+          const x = view.padLeft + slotWidth * index + (slotWidth - barWidth) / 2;
           const baseY = y(0);
 
           const observedHeight = scaleMax > 0 ? (observed / scaleMax) * plotHeight : 0;
@@ -174,16 +198,21 @@ function SpendingChart({ months, baseCurrency, isDark = false }) {
           const dimmed = hovered !== null && hovered !== index;
 
           return (
+            /* На тачскрине наведения нет: там месяц выбирают тапом, повторный
+               тап снимает выбор. Иначе строка со значением оставалась пустой
+               и цифру по столбцу узнать было нельзя */
             <g
               key={month.month}
               opacity={dimmed ? 0.6 : 1}
               onMouseEnter={() => setHovered(index)}
               onMouseLeave={() => setHovered(null)}
+              onClick={() => setHovered(current => (current === index ? null : index))}
+              style={{ cursor: 'pointer' }}
             >
               {/* Прозрачная зона наведения шире столбца */}
               <rect
-                x={VIEW.padLeft + slotWidth * index}
-                y={VIEW.padTop}
+                x={view.padLeft + slotWidth * index}
+                y={view.padTop}
                 width={slotWidth}
                 height={plotHeight}
                 fill="transparent"
@@ -214,14 +243,14 @@ function SpendingChart({ months, baseCurrency, isDark = false }) {
                   className="fill-slate-500 dark:fill-slate-400"
                   style={{ fontSize: 11 }}
                 >
-                  {compact(month.total, baseCurrency)}
+                  {shortAmount(month.total)}
                 </text>
               )}
 
               {index % labelStep === 0 && (
                 <text
-                  x={VIEW.padLeft + slotWidth * index + slotWidth / 2}
-                  y={VIEW.height - 8}
+                  x={view.padLeft + slotWidth * index + slotWidth / 2}
+                  y={view.height - 8}
                   textAnchor="middle"
                   className="fill-slate-400 dark:fill-slate-500"
                   style={{ fontSize: 11 }}
@@ -235,8 +264,8 @@ function SpendingChart({ months, baseCurrency, isDark = false }) {
 
         {/* Базовая линия */}
         <line
-          x1={VIEW.padLeft}
-          x2={VIEW.padLeft + plotWidth}
+          x1={view.padLeft}
+          x2={view.padLeft + plotWidth}
           y1={y(0)}
           y2={y(0)}
           className="stroke-slate-300 dark:stroke-slate-600"

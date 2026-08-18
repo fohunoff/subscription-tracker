@@ -44,13 +44,13 @@ const Drawer = ({ isOpen, onClose, title, children, footer }) => {
         className="absolute inset-y-0 right-0 w-full sm:max-w-lg lg:max-w-2xl bg-white dark:bg-slate-800 shadow-2xl flex flex-col animate-drawerShow"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between gap-3 p-5 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
-          <h2 id="drawer-title" className="text-xl font-semibold text-slate-700 dark:text-slate-200 truncate" title={title}>
+        <div className="flex items-center justify-between gap-3 p-4 sm:p-5 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
+          <h2 id="drawer-title" className="text-lg sm:text-xl font-semibold text-slate-700 dark:text-slate-200 truncate" title={title}>
             {title}
           </h2>
           <button
             onClick={onClose}
-            className="p-1 rounded-md text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200 transition-colors flex-shrink-0"
+            className="p-2 -m-1 rounded-md text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200 transition-colors flex-shrink-0"
             aria-label="Закрыть панель"
           >
             <XMarkIcon className="h-6 w-6" />
@@ -58,12 +58,12 @@ const Drawer = ({ isOpen, onClose, title, children, footer }) => {
         </div>
 
         {/* Прокручивается только эта часть — заголовок и действия остаются на виду */}
-        <div className="flex-1 overflow-y-auto overscroll-contain p-5 md:p-6">
+        <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5 md:p-6">
           {children}
         </div>
 
         {footer && (
-          <div className="border-t border-slate-200 dark:border-slate-700 p-4 flex-shrink-0">
+          <div className="border-t border-slate-200 dark:border-slate-700 p-3 sm:p-4 flex-shrink-0">
             {footer}
           </div>
         )}

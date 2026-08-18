@@ -4,6 +4,7 @@ import ru from 'date-fns/locale/ru';
 import { PlusCircleIcon, CalendarIcon, CheckCircleIcon } from '@heroicons/react/24/solid';
 import { CYCLE_OPTIONS, cycleRequiresFullDate } from '../../shared/utils/cycle';
 import { CURRENCY_OPTIONS, DEFAULT_CURRENCY } from '../../shared/utils/currency';
+import { useMediaQuery } from '../../shared/hooks';
 
 registerLocale('ru', ru);
 
@@ -28,6 +29,11 @@ function SubscriptionForm({
   // Флаг архивации имеет смысл только вместе с датой, по умолчанию включён.
   const [endDate, setEndDate] = useState(null);
   const [archiveOnEnd, setArchiveOnEnd] = useState(true);
+
+  // На узких экранах календарь открывается отдельным окном по центру.
+  // Всплывающий календарь лежит внутри прокручиваемой формы, и «auto» его не
+  // переворачивал: на 320×720 сетка дней целиком оказывалась ниже экрана.
+  const isCompactScreen = useMediaQuery('(max-width: 639px)');
 
   // Определяем, нужно ли показывать календарь
   const currentCategory = categories.find(cat => cat.id === categoryId);
@@ -141,7 +147,10 @@ function SubscriptionForm({
     }
   };
 
-  const inputBaseClass = "block w-full text-sm rounded-lg border-slate-300 p-2 shadow-sm focus:border-brand-primary focus:outline-none focus:ring focus:ring-brand-primary focus:ring-opacity-90 disabled:opacity-50 disabled:bg-slate-50 disabled:cursor-not-allowed";
+  // text-base на мобильных — не косметика: Safari на iOS зумит страницу при
+  // фокусе в поле со шрифтом меньше 16px, и после ввода названия форма
+  // оказывалась за краем экрана. p-2.5 доводит поле до комфортных 44px.
+  const inputBaseClass = "block w-full text-base sm:text-sm rounded-lg border-slate-300 p-2.5 sm:p-2 shadow-sm focus:border-brand-primary focus:outline-none focus:ring focus:ring-brand-primary focus:ring-opacity-90 disabled:opacity-50 disabled:bg-slate-50 disabled:cursor-not-allowed";
   const labelBaseClass = "block mb-1 text-sm font-medium text-slate-700 dark:text-slate-200";
 
   const CustomDatePickerInput = React.forwardRef(({ value, onClick, placeholder }, ref) => (
@@ -262,6 +271,7 @@ function SubscriptionForm({
               placeholderText="Выберите дату"
               customInput={<CustomDatePickerInput placeholder="Выберите дату" />}
               popperPlacement="auto"
+              withPortal={isCompactScreen}
               showMonthDropdown
               showYearDropdown
               dropdownMode="select"
@@ -287,6 +297,7 @@ function SubscriptionForm({
           placeholderText="Подписка бессрочная"
           customInput={<CustomDatePickerInput placeholder="Подписка бессрочная" />}
           popperPlacement="auto"
+          withPortal={isCompactScreen}
           showMonthDropdown
           showYearDropdown
           dropdownMode="select"
@@ -317,7 +328,7 @@ function SubscriptionForm({
               type="checkbox"
               checked={archiveOnEnd}
               onChange={(e) => setArchiveOnEnd(e.target.checked)}
-              className="rounded border-slate-300 text-brand-primary focus:ring-brand-primary focus:ring-opacity-50"
+              className="h-5 w-5 rounded border-slate-300 text-brand-primary focus:ring-brand-primary focus:ring-opacity-50"
             />
             <span className="ml-2 text-sm text-slate-700 dark:text-slate-200">
               Отправить в архив после окончания
@@ -339,7 +350,7 @@ function SubscriptionForm({
               type="checkbox"
               checked={notificationsEnabled}
               onChange={(e) => setNotificationsEnabled(e.target.checked)}
-              className="rounded border-slate-300 text-brand-primary focus:ring-brand-primary focus:ring-opacity-50"
+              className="h-5 w-5 rounded border-slate-300 text-brand-primary focus:ring-brand-primary focus:ring-opacity-50"
             />
             <span className="ml-2 text-sm font-medium text-slate-700 dark:text-slate-200">
               Включить уведомления в Telegram
@@ -366,7 +377,7 @@ function SubscriptionForm({
                     type="checkbox"
                     checked={notifyDaysBefore.includes(value)}
                     onChange={() => handleDayToggle(value)}
-                    className="rounded border-slate-300 text-brand-primary focus:ring-brand-primary focus:ring-opacity-50"
+                    className="h-5 w-5 rounded border-slate-300 text-brand-primary focus:ring-brand-primary focus:ring-opacity-50"
                   />
                   <span className="ml-2 text-sm text-slate-600 dark:text-slate-300">
                     {label}

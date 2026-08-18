@@ -351,40 +351,46 @@ function AppContent() {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-100 dark:bg-slate-900 font-sans transition-colors">
-      {/* Хедер с настройками и пользователем */}
-      <div className="fixed top-4 right-4 z-50 flex items-center space-x-3">
+      {/* Хедер с настройками и пользователем.
+          До lg кнопки живут в липкой полосе, а не висят в углу: плавающими они
+          накрывали заголовок страницы и заголовки секций при прокрутке — на
+          390px под ними полностью пропадало «Трекер расходов», а на планшете
+          в портрете кнопка темы задевала последнюю букву заголовка.
+          Порог именно lg: только там заголовок в 5xl и блок кнопок перестают
+          претендовать на одно место. */}
+      <div className="sticky top-0 z-50 flex items-center justify-end gap-2 px-3 py-2 bg-slate-100/90 dark:bg-slate-900/90 backdrop-blur lg:fixed lg:top-4 lg:right-4 lg:gap-3 lg:p-0 lg:bg-transparent lg:dark:bg-transparent lg:backdrop-blur-none">
         <button
           onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-          className="bg-white/80 dark:bg-slate-800/80 hover:bg-white dark:hover:bg-slate-800 shadow-lg rounded-full p-2 border border-slate-200 dark:border-slate-700 transition-colors"
+          className="bg-white/80 dark:bg-slate-800/80 hover:bg-white dark:hover:bg-slate-800 shadow-lg rounded-full p-2.5 border border-slate-200 dark:border-slate-700 transition-colors"
           aria-label="Переключить тему"
           type="button"
         >
           {theme === 'light' ? (
-            <MoonIcon className="h-7 w-7 text-slate-600 dark:text-slate-300" />
+            <MoonIcon className="h-6 w-6 lg:h-7 lg:w-7 text-slate-600 dark:text-slate-300" />
           ) : (
-            <SunIcon className="h-7 w-7 text-yellow-500" />
+            <SunIcon className="h-6 w-6 lg:h-7 lg:w-7 text-yellow-500" />
           )}
         </button>
 
         <button
           onClick={() => setIsSettingsOpen(true)}
-          className="bg-white/80 dark:bg-slate-800/80 hover:bg-white dark:hover:bg-slate-800 shadow-lg rounded-full p-2 border border-slate-200 dark:border-slate-700 transition-colors"
+          className="bg-white/80 dark:bg-slate-800/80 hover:bg-white dark:hover:bg-slate-800 shadow-lg rounded-full p-2.5 border border-slate-200 dark:border-slate-700 transition-colors"
           aria-label="Открыть настройки"
           type="button"
         >
-          <Cog6ToothIcon className="h-7 w-7 text-slate-600 dark:text-slate-300" />
+          <Cog6ToothIcon className="h-6 w-6 lg:h-7 lg:w-7 text-slate-600 dark:text-slate-300" />
         </button>
 
         <UserMenu />
       </div>
 
-      <div className="container mx-auto px-4 py-8 md:py-12 max-w-4xl flex-1 flex flex-col">
-        
-        <header className="mb-10 flex flex-col items-center text-center">
-          <h1 className="text-4xl md:text-5xl font-bold text-slate-800 tracking-tight">
+      <div className="container mx-auto px-3 sm:px-4 pt-4 pb-8 sm:py-8 md:py-12 max-w-4xl flex-1 flex flex-col">
+
+        <header className="mb-8 md:mb-10 flex flex-col items-center text-center">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">
             Трекер расходов
           </h1>
-          <p className="mt-2 text-lg text-slate-600">
+          <p className="mt-2 text-base sm:text-lg text-slate-600 dark:text-slate-300">
             Управляйте своими расходами легко и эффективно.
           </p>
         </header>
@@ -401,18 +407,20 @@ function AppContent() {
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-brand-primary"></div>
                 )}
               </h2>
-              <div className="flex items-center gap-2">
+              {/* На узких экранах кнопки делят строку пополам: так тап-цель
+                  выходит на комфортные 44px по высоте и не жмётся к краю */}
+              <div className="flex items-center gap-2 w-full sm:w-auto">
                 <button
                   onClick={openAddCategoryModal}
-                  className="flex items-center justify-center gap-2 bg-brand-primary hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75"
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-brand-primary hover:bg-blue-600 text-white font-semibold py-2.5 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75"
                 >
                   <PlusIcon className="h-4 w-4" />
                   Категория
                 </button>
-                
+
                 <button
                   onClick={() => openAddSubscriptionModal()}
-                  className="flex items-center justify-center gap-2 bg-brand-secondary hover:bg-emerald-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-opacity-75"
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-brand-secondary hover:bg-emerald-600 text-white font-semibold py-2.5 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-opacity-75"
                 >
                   <PlusIcon className="h-4 w-4" />
                   Подписка
@@ -523,8 +531,8 @@ function AppContent() {
           />
 
           {/* Секция импорта/экспорта подписок */}
-          <section aria-labelledby="import-export-heading" className="bg-white dark:bg-slate-800 rounded-xl p-6 md:p-8">
-            <h2 id="import-export-heading" className="text-2xl font-semibold text-slate-700 dark:text-slate-200 mb-3">
+          <section aria-labelledby="import-export-heading" className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 md:p-8">
+            <h2 id="import-export-heading" className="text-xl sm:text-2xl font-semibold text-slate-700 dark:text-slate-200 mb-3">
               Импорт / Экспорт подписок
             </h2>
             <p className="text-slate-600 dark:text-slate-300 mb-4">

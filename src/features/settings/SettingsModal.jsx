@@ -81,7 +81,7 @@ const SettingsModal = ({
         <select
           value={baseCurrency}
           onChange={e => setBaseCurrency(e.target.value)}
-          className="block w-full max-w-xs rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 p-2 shadow-sm focus:border-brand-primary focus:outline-none focus:ring focus:ring-brand-primary focus:ring-opacity-90"
+          className="block w-full max-w-xs rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 p-2.5 sm:p-2 shadow-sm focus:border-brand-primary focus:outline-none focus:ring focus:ring-brand-primary focus:ring-opacity-90"
         >
           {CURRENCY_OPTIONS.map(option => (
             <option key={option.value} value={option.value}>{option.label}</option>
@@ -97,7 +97,7 @@ const SettingsModal = ({
         <select
           value={defaultCurrency}
           onChange={e => setDefaultCurrency(e.target.value)}
-          className="block w-full max-w-xs rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 p-2 shadow-sm focus:border-brand-primary focus:outline-none focus:ring focus:ring-brand-primary focus:ring-opacity-90"
+          className="block w-full max-w-xs rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 p-2.5 sm:p-2 shadow-sm focus:border-brand-primary focus:outline-none focus:ring focus:ring-brand-primary focus:ring-opacity-90"
         >
           {CURRENCY_OPTIONS.map(option => (
             <option key={option.value} value={option.value}>{option.label}</option>
@@ -123,7 +123,7 @@ const SettingsModal = ({
             value={notificationTime}
             onChange={handleTimeChange}
             disabled={isUpdatingTime}
-            className="block w-full max-w-xs rounded-lg border-slate-300 p-2 shadow-sm focus:border-brand-primary focus:outline-none focus:ring focus:ring-brand-primary focus:ring-opacity-90 disabled:opacity-50"
+            className="block w-full max-w-xs rounded-lg border-slate-300 p-2.5 sm:p-2 shadow-sm focus:border-brand-primary focus:outline-none focus:ring focus:ring-brand-primary focus:ring-opacity-90 disabled:opacity-50"
           />
           <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
             Уведомления будут отправляться в указанное время (по вашему часовому поясу)

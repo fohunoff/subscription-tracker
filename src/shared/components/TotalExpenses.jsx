@@ -97,12 +97,12 @@ const TotalExpenses = ({
   };
 
   return (
-    <section className="bg-white dark:bg-slate-800 rounded-xl p-6 md:p-8 mb-6">
+    <section className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 md:p-8 mb-6">
       <div className="text-center mb-6">
-        <h2 className="text-xl font-semibold text-slate-700 dark:text-slate-200 mb-2">
+        <h2 className="text-lg sm:text-xl font-semibold text-slate-700 dark:text-slate-200 mb-2">
           {isFiltered ? 'Расход в месяц по найденному' : 'Средний расход в месяц'}
         </h2>
-        <p className="text-4xl font-bold text-brand-primary mb-2">
+        <p className="text-3xl sm:text-4xl font-bold text-brand-primary mb-2">
           {formatCurrency(totalMonthlyCost, baseCurrency)}
         </p>
 
@@ -126,20 +126,26 @@ const TotalExpenses = ({
           )}
         </p>
 
+        {/* Категория вынесена отдельной строкой, а не в скобки после названия:
+            на узких экранах строка рвалась так, что «(» и «)» оставались
+            висеть в отдельных строках вокруг названия категории */}
         {nextPayment && (
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Ближайшая:{' '}
-            <button
-              type="button"
-              onClick={() => onSubscriptionClick?.(nextPayment.subscription)}
-              className="font-medium text-slate-700 dark:text-slate-200 hover:text-brand-primary dark:hover:text-brand-primary underline decoration-dotted underline-offset-2 transition-colors"
-              title="Открыть детали подписки"
-            >
-              {nextPayment.subscription.name}
-            </button>
+          <div className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            <p>
+              Ближайшая:{' '}
+              <button
+                type="button"
+                onClick={() => onSubscriptionClick?.(nextPayment.subscription)}
+                className="font-medium text-slate-700 dark:text-slate-200 hover:text-brand-primary dark:hover:text-brand-primary underline decoration-dotted underline-offset-2 transition-colors"
+                title="Открыть детали подписки"
+              >
+                {nextPayment.subscription.name}
+              </button>
+              {' — '}
+              {nextPayment.date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
+            </p>
             {nextPayment.category && (
-              <>
-                {' ('}
+              <p className="text-xs mt-0.5">
                 <button
                   type="button"
                   onClick={() => handleCategoryClick(nextPayment.category.id || nextPayment.category._id)}
@@ -148,12 +154,9 @@ const TotalExpenses = ({
                 >
                   {nextPayment.category.name}
                 </button>
-                {')'}
-              </>
+              </p>
             )}
-            {' — '}
-            {nextPayment.date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
-          </p>
+          </div>
         )}
       </div>
 
@@ -169,8 +172,11 @@ const TotalExpenses = ({
                 onClick={() => handleCategoryClick(cat.id)}
                 className="w-full text-left group hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg p-2 -mx-2 transition-colors"
               >
-                <div className="flex items-center justify-between mb-1.5">
-                  <div className="flex items-center gap-2">
+                {/* На узких экранах сумма встаёт под названием: у категории
+                    вроде «Дом, связь и коммунальные платежи» неразрывное слово
+                    не давало строке сжаться, и цифра налезала на текст */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-0.5 sm:gap-2 mb-1.5">
+                  <div className="flex items-center gap-2 min-w-0">
                     <span
                       className="w-3 h-3 rounded-full flex-shrink-0"
                       style={{ backgroundColor: cat.color }}
@@ -178,11 +184,13 @@ const TotalExpenses = ({
                     <span className="text-sm font-medium text-slate-700 dark:text-slate-200 group-hover:text-brand-primary dark:group-hover:text-brand-primary transition-colors">
                       {cat.name}
                     </span>
-                    <span className="text-xs text-slate-400 dark:text-slate-500">
+                    {/* Счётчик подписок уступает место сумме: на узких экранах
+                        он отжимал цифру, ради которой блок и открывают */}
+                    <span className="hidden sm:inline text-xs text-slate-400 dark:text-slate-500 flex-shrink-0">
                       ({cat.count} {cat.count === 1 ? 'подписка' : cat.count < 5 ? 'подписки' : 'подписок'})
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-between sm:justify-end gap-2 sm:flex-shrink-0">
                     <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">
                       {formatCurrency(cat.total, baseCurrency)}
                     </span>

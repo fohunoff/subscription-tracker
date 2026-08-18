@@ -142,7 +142,7 @@ function ExportData({ subscriptions, onImport, categories = [] }) {
         <button
           onClick={handleExport}
           disabled={subscriptions.length === 0}
-          className="inline-flex items-center gap-2 bg-sky-600 hover:bg-sky-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-medium py-2.5 px-5 rounded-lg shadow-sm hover:shadow-md transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-opacity-75"
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-medium py-2.5 px-5 rounded-lg shadow-sm hover:shadow-md transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-opacity-75"
         >
           <ArrowDownTrayIcon className="h-5 w-5" />
           Экспортировать данные
@@ -151,7 +151,7 @@ function ExportData({ subscriptions, onImport, categories = [] }) {
         <button
           type="button"
           onClick={() => fileInputRef.current && fileInputRef.current.click()}
-          className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 px-5 rounded-lg shadow-sm hover:shadow-md transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-opacity-75"
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 px-5 rounded-lg shadow-sm hover:shadow-md transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-opacity-75"
         >
           <ArrowUpTrayIcon className="h-5 w-5" />
           Импортировать данные
@@ -168,7 +168,7 @@ function ExportData({ subscriptions, onImport, categories = [] }) {
             id="export-category"
             value={selectedCategoryForExport}
             onChange={(e) => setSelectedCategoryForExport(e.target.value)}
-            className="block w-full max-w-xs rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-200 p-2 shadow-sm focus:border-brand-primary focus:outline-none focus:ring focus:ring-brand-primary focus:ring-opacity-90"
+            className="block w-full max-w-xs rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-200 p-2.5 sm:p-2 shadow-sm focus:border-brand-primary focus:outline-none focus:ring focus:ring-brand-primary focus:ring-opacity-90"
           >
             <option value="all">Все категории ({subscriptions.length} подписок)</option>
             {categories.map(category => {
@@ -197,7 +197,7 @@ function ExportData({ subscriptions, onImport, categories = [] }) {
             id="import-category"
             value={selectedCategoryForImport}
             onChange={(e) => setSelectedCategoryForImport(e.target.value)}
-            className="block w-full max-w-xs rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-200 p-2 shadow-sm focus:border-brand-primary focus:outline-none focus:ring focus:ring-brand-primary focus:ring-opacity-90"
+            className="block w-full max-w-xs rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-200 p-2.5 sm:p-2 shadow-sm focus:border-brand-primary focus:outline-none focus:ring focus:ring-brand-primary focus:ring-opacity-90"
           >
             {categories.map(category => (
               <option key={category.id} value={category.id}>

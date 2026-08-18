@@ -44,21 +44,26 @@ function SubscriptionItem({ subscription, onDeleteSubscription, onEditSubscripti
         tabIndex={onOpenDetails ? 0 : undefined}
         title={onOpenDetails ? 'Открыть детали подписки' : undefined}
       >
-        <h3 className="text-lg font-semibold text-slate-800 truncate flex items-center gap-2" title={subscription.name}>
-          <span className="truncate">{subscription.name}</span>
+        {/* На узких экранах название переносится на две строки, а не режется
+            многоточием: «Мобильная связь МТС (архивный тариф…)» теряла в
+            обрезке больше половины текста, а раскрыть её было негде */}
+        <h3 className="text-lg font-semibold text-slate-800 flex items-start gap-2" title={subscription.name}>
+          <span className="line-clamp-2 sm:truncate">{subscription.name}</span>
           {isExpired && (
             <span className="flex-shrink-0 text-xs font-normal px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
               срок истёк
             </span>
           )}
         </h3>
-        <div className="flex items-center space-x-3 text-sm text-slate-600 mt-1">
+        {/* Цена и дата платежа переносятся, а не делят строку пополам: на 390px
+            в две колонки каждая из них ужималась до трёх слов на строку */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-600 mt-1">
           <div className="flex items-center">
-            <CurrencyDollarIcon className="h-4 w-4 mr-1 text-slate-500" />
+            <CurrencyDollarIcon className="h-4 w-4 mr-1 flex-shrink-0 text-slate-500" />
             <span>{formatCurrency(subscription.cost, subscription.currency)} / {cycleText}</span>
           </div>
-          <div className="flex items-center">
-            <CalendarDaysIcon className="h-4 w-4 mr-1 text-slate-500" />
+          <div className="flex items-start">
+            <CalendarDaysIcon className="h-4 w-4 mr-1 mt-0.5 flex-shrink-0 text-slate-500" />
             <span>
               {isMonthly
                 ? `День оплаты: ${subscription.paymentDay} число каждого месяца`
@@ -93,7 +98,7 @@ function SubscriptionItem({ subscription, onDeleteSubscription, onEditSubscripti
         {/* Иконка статуса уведомлений */}
         <button
           onClick={() => onEditSubscription(subscription)}
-          className={`p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-opacity-50 transition-colors duration-150 ${
+          className={`p-3 sm:p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-opacity-50 transition-colors duration-150 ${
             subscription.notificationsEnabled
               ? 'focus:ring-emerald-500 text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20'
               : 'focus:ring-slate-500 text-slate-400 bg-slate-100 dark:bg-slate-700/30'
@@ -109,7 +114,7 @@ function SubscriptionItem({ subscription, onDeleteSubscription, onEditSubscripti
 
         <button
           onClick={() => onEditSubscription(subscription)}
-          className="p-2 rounded-md text-sky-600 hover:bg-sky-100 dark:hover:bg-sky-900/30 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-opacity-50 transition-colors duration-150"
+          className="p-3 sm:p-2 rounded-md text-sky-600 hover:bg-sky-100 dark:hover:bg-sky-900/30 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-opacity-50 transition-colors duration-150"
           aria-label={`Редактировать подписку ${subscription.name}`}
         >
           <PencilSquareIcon className="h-5 w-5" />
@@ -117,7 +122,7 @@ function SubscriptionItem({ subscription, onDeleteSubscription, onEditSubscripti
         {onArchiveSubscription && (
           <button
             onClick={() => onArchiveSubscription(subscription)}
-            className="p-2 rounded-md text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-900/30 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-opacity-50 transition-colors duration-150"
+            className="p-3 sm:p-2 rounded-md text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-900/30 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-opacity-50 transition-colors duration-150"
             aria-label={`Завершить подписку ${subscription.name}`}
             title="Завершить подписку — уйдёт в архив с сохранением настроек"
           >
@@ -126,7 +131,7 @@ function SubscriptionItem({ subscription, onDeleteSubscription, onEditSubscripti
         )}
         <button
           onClick={() => onDeleteSubscription(subscription.id)}
-          className="p-2 rounded-md text-brand-danger hover:bg-red-100 dark:hover:bg-red-900/30 focus:outline-none focus:ring-2 focus:ring-brand-danger focus:ring-opacity-50 transition-colors duration-150"
+          className="p-3 sm:p-2 rounded-md text-brand-danger hover:bg-red-100 dark:hover:bg-red-900/30 focus:outline-none focus:ring-2 focus:ring-brand-danger focus:ring-opacity-50 transition-colors duration-150"
           aria-label={`Удалить подписку ${subscription.name}`}
         >
           <TrashIcon className="h-5 w-5" />
