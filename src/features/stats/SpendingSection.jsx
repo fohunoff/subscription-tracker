@@ -43,19 +43,19 @@ function SpendingSection({ spending, isLoading, months, onLoad, isDark }) {
     : 0;
 
   return (
-    <section aria-labelledby="spending-heading" className="bg-white dark:bg-slate-800 rounded-xl p-6 md:p-8">
+    <section aria-labelledby="spending-heading" className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 md:p-8">
       <button
         type="button"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between text-left"
+        className="w-full flex items-center justify-between gap-3 text-left"
         aria-expanded={isExpanded}
       >
-        <h2 id="spending-heading" className="text-2xl font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-2">
-          <ChartBarIcon className="h-6 w-6 text-slate-400" />
+        <h2 id="spending-heading" className="text-xl sm:text-2xl font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-2">
+          <ChartBarIcon className="h-6 w-6 flex-shrink-0 text-slate-400" />
           Сколько уже потрачено
         </h2>
         <ChevronDownIcon
-          className={`h-6 w-6 text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+          className={`h-6 w-6 flex-shrink-0 text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
         />
       </button>
 
@@ -99,7 +99,7 @@ function SpendingSection({ spending, isLoading, months, onLoad, isDark }) {
                 <p className="text-sm text-slate-500 dark:text-slate-400">
                   Всего за период
                 </p>
-                <p className="text-4xl font-bold text-brand-primary">
+                <p className="text-3xl sm:text-4xl font-bold text-brand-primary">
                   {formatCurrency(spending.total, baseCurrency, 'ru-RU', { maximumFractionDigits: 0 })}
                 </p>
                 <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">

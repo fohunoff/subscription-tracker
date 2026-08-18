@@ -30,9 +30,11 @@ const UserMenu = () => {
 
   return (
     <div className="relative" ref={menuRef}>
+      {/* Тёмные классы — как у соседних кнопок темы и настроек: в одной группе
+          белая кнопка выбивалась из тёмного оформления */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center space-x-2 bg-white/80 hover:bg-white shadow-lg rounded-full py-2 px-3 border border-slate-200 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-opacity-50"
+        className="flex items-center space-x-2 bg-white/80 dark:bg-slate-800/80 hover:bg-white dark:hover:bg-slate-800 shadow-lg rounded-full py-2 px-3 border border-slate-200 dark:border-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-opacity-50"
         aria-expanded={isOpen}
         aria-haspopup="true"
       >
@@ -43,7 +45,7 @@ const UserMenu = () => {
             className="w-8 h-8 rounded-full"
           />
         ) : (
-          <UserCircleIcon className="w-8 h-8 text-slate-600" />
+          <UserCircleIcon className="w-8 h-8 text-slate-600 dark:text-slate-300" />
         )}
         {/* <span className="hidden sm:block text-slate-700 font-medium max-w-32 truncate">
           {user.name}
@@ -54,16 +56,16 @@ const UserMenu = () => {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-slate-200 py-2 z-50">
-          <div className="px-4 py-3 border-b border-slate-200">
-            <p className="text-sm font-medium text-slate-900">{user.name}</p>
-            <p className="text-sm text-slate-500 truncate">{user.email}</p>
+        <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 py-2 z-50">
+          <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700">
+            <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{user.name}</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400 truncate">{user.email}</p>
           </div>
-          
+
           <div className="py-1">
             <button
               onClick={handleLogout}
-              className="flex items-center w-full px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
+              className="flex items-center w-full px-4 py-2.5 sm:py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
             >
               <ArrowRightOnRectangleIcon className="w-4 h-4 mr-3" />
               Выйти

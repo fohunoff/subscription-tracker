@@ -16,7 +16,9 @@ function SubscriptionDetailsActions({ subscription, onEdit, onArchive, onDelete 
   const isArchived = subscription.status === 'archived';
 
   return (
-    <div className="flex items-center gap-2">
+    // Кнопки переносятся по строкам: на 320px «Удалить» уезжала за правый край
+    // панели и до неё было нельзя дотянуться
+    <div className="flex flex-wrap items-center gap-2">
       <button
         type="button"
         onClick={() => onEdit(subscription)}
@@ -45,7 +47,7 @@ function SubscriptionDetailsActions({ subscription, onEdit, onArchive, onDelete 
         title="Удалить подписку"
       >
         <TrashIcon className="h-4 w-4" />
-        <span className="hidden sm:inline">Удалить</span>
+        Удалить
       </button>
     </div>
   );

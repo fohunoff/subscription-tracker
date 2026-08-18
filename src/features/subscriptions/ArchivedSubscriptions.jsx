@@ -54,15 +54,15 @@ function ArchivedSubscriptions({
     value ? new Date(value).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) : null;
 
   return (
-    <section aria-labelledby="archive-heading" className="bg-white dark:bg-slate-800 rounded-xl p-6 md:p-8">
+    <section aria-labelledby="archive-heading" className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 md:p-8">
       <button
         type="button"
         onClick={toggle}
-        className="w-full flex items-center justify-between text-left"
+        className="w-full flex items-center justify-between gap-3 text-left"
         aria-expanded={expanded}
       >
-        <h2 id="archive-heading" className="text-2xl font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-2">
-          <ArchiveBoxIcon className="h-6 w-6 text-slate-400" />
+        <h2 id="archive-heading" className="text-xl sm:text-2xl font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-2">
+          <ArchiveBoxIcon className="h-6 w-6 flex-shrink-0 text-slate-400" />
           Архив подписок
           {hasLoaded && archivedSubscriptions.length > 0 && (
             <span className="text-base font-normal text-slate-500 dark:text-slate-400">
@@ -71,7 +71,7 @@ function ArchivedSubscriptions({
           )}
         </h2>
         <ChevronDownIcon
-          className={`h-6 w-6 text-slate-400 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
+          className={`h-6 w-6 flex-shrink-0 text-slate-400 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
         />
       </button>
 
@@ -93,7 +93,7 @@ function ArchivedSubscriptions({
                   className="bg-slate-50 dark:bg-slate-700/30 p-4 rounded-lg border border-slate-200 dark:border-slate-600 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
                 >
                   <div className="min-w-0">
-                    <h3 className="font-semibold text-slate-600 dark:text-slate-300 truncate" title={sub.name}>
+                    <h3 className="font-semibold text-slate-600 dark:text-slate-300 line-clamp-2 sm:truncate" title={sub.name}>
                       {sub.name}
                     </h3>
                     <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
@@ -110,7 +110,7 @@ function ArchivedSubscriptions({
                   <div className="flex items-center gap-2 self-start sm:self-center">
                     <button
                       onClick={() => onRestore(sub.id)}
-                      className="p-2 rounded-md text-emerald-600 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-opacity-50 transition-colors duration-150"
+                      className="p-3 sm:p-2 rounded-md text-emerald-600 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-opacity-50 transition-colors duration-150"
                       aria-label={`Восстановить подписку ${sub.name}`}
                       title="Восстановить со всеми настройками"
                     >
@@ -118,7 +118,7 @@ function ArchivedSubscriptions({
                     </button>
                     <button
                       onClick={() => onDelete(sub)}
-                      className="p-2 rounded-md text-brand-danger hover:bg-red-100 dark:hover:bg-red-900/30 focus:outline-none focus:ring-2 focus:ring-brand-danger focus:ring-opacity-50 transition-colors duration-150"
+                      className="p-3 sm:p-2 rounded-md text-brand-danger hover:bg-red-100 dark:hover:bg-red-900/30 focus:outline-none focus:ring-2 focus:ring-brand-danger focus:ring-opacity-50 transition-colors duration-150"
                       aria-label={`Удалить подписку ${sub.name} навсегда`}
                       title="Удалить навсегда"
                     >

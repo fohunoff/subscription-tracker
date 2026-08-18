@@ -32,7 +32,10 @@ export function ToastProvider({ children }) {
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      <div className="fixed z-[9999] bottom-8 right-8 space-y-2 pointer-events-none">
+      {/* На узких экранах тосты растягиваются во всю ширину с отступами:
+          привязанные к правому краю, они прижимались к нему и длинный текст
+          лез в пять строк */}
+      <div className="fixed z-[9999] bottom-4 left-3 right-3 sm:bottom-8 sm:right-8 sm:left-auto space-y-2 pointer-events-none">
         {toasts.map((toast) => (
           <div
             key={toast.id}

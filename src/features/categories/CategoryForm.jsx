@@ -60,7 +60,9 @@ function CategoryForm({ onAddCategory, onUpdateCategory, initialData, isEditMode
     }
   };
 
-  const inputBaseClass = "block w-full text-sm rounded-lg border-slate-300 p-2 shadow-sm focus:border-brand-primary focus:outline-none focus:ring focus:ring-brand-primary focus:ring-opacity-90 disabled:opacity-50 disabled:bg-slate-50 disabled:cursor-not-allowed";
+  // text-base на мобильных: со шрифтом меньше 16px Safari на iOS зумит
+  // страницу при фокусе в поле (см. тот же приём в SubscriptionForm)
+  const inputBaseClass = "block w-full text-base sm:text-sm rounded-lg border-slate-300 p-2.5 sm:p-2 shadow-sm focus:border-brand-primary focus:outline-none focus:ring focus:ring-brand-primary focus:ring-opacity-90 disabled:opacity-50 disabled:bg-slate-50 disabled:cursor-not-allowed";
   const labelBaseClass = "block mb-1 text-sm font-medium text-slate-700 dark:text-slate-200";
 
   return (
@@ -110,7 +112,7 @@ function CategoryForm({ onAddCategory, onUpdateCategory, initialData, isEditMode
             id="hasReminders"
             checked={hasReminders}
             onChange={(e) => setHasReminders(e.target.checked)}
-            className="mt-1 rounded border-slate-300 text-brand-primary focus:ring-brand-primary focus:ring-opacity-50"
+            className="mt-1 h-5 w-5 rounded border-slate-300 text-brand-primary focus:ring-brand-primary focus:ring-opacity-50"
             disabled={isSubmitting || (isEditMode && initialData?.isDefault)}
           />
           <div className="flex-1">
