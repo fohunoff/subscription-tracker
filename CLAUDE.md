@@ -23,7 +23,7 @@ A full-stack subscription tracker application that helps users manage their recu
 **Feature-Based Organization:**
 ```
 src/
-├── features/           # Feature modules (subscriptions, categories, auth, settings, telegram, notifications)
+├── features/           # Feature modules (subscriptions, categories, auth, settings, stats, data, telegram, notifications)
 │   ├── [feature]/
 │   │   ├── hooks/     # Feature-specific hooks
 │   │   ├── utils/     # Feature utilities
@@ -53,6 +53,7 @@ src/
   - срок действия: endDate + archiveOnEnd (архивировать по окончании, по умолчанию да)
     + endHandledAt (отметка обработки, служебное)
   - paymentsLoggedThrough: до какого момента платежи записаны в лог (служебное)
+  - url: ссылка на сайт сервиса (необязательная) — по ней берётся favicon
 - SubscriptionEvent: лог изменений по подписке
   (created/updated/archived/returned/restored/deleted/payment/ended)
 
@@ -193,6 +194,33 @@ src/
 меньше реального. Рядом есть табличный вид —
 он же закрывает доступность, когда цвет не читается. Данные грузятся при первом
 раскрытии секции, как архив.
+
+**Иконка сервиса — favicon по ссылке, а не пак логотипов.** У подписки есть
+необязательное поле `url` (`server/utils/url.js` нормализует ввод: дописывает
+`https://`, отбивает не-http схемы и хосты без точки — «netflix.com» вводят
+чаще, чем полный адрес). Готовый набор логотипов не годился: любой из них
+покрывает известные бренды, а рядом с Netflix в списке живут мобильный оператор
+и коммуналка. Favicon есть у всего, у чего есть сайт.
+
+Источник — `https://www.google.com/s2/favicons` (`src/shared/utils/site.js`,
+одна функция `getFaviconUrl` — менять источник только там). Он покрывает
+рунет заметно лучше альтернатив: у DuckDuckGo не нашлись `mts.ru`, `ozon.ru`,
+`megafon.ru`, `tinkoff.ru`. Цена решения — домен сервиса уходит запросом
+к Google.
+
+**Отсутствие иконки определяется по размеру, а не по коду ответа.** На
+неизвестный домен сервис отвечает 404, но телом валидного PNG — серого
+глобуса, — и браузер рисует его как обычную картинку: `onError` у `<img>` не
+срабатывает, а прочитать статус из JS нельзя (CORS-заголовков у ответа нет).
+Отличает заглушку размер: она всегда 16×16, настоящие иконки приходят в
+запрошенном. Поэтому `ServiceIcon` проверяет `naturalWidth` в `onLoad` и
+переключается на букву названия в цвете категории — одинаковый серый глобус у
+всех неизвестных сервисов различает подписки хуже, чем буква. Размер картинки
+запрашивается один на все места показа (128), чтобы карточка и панель деталей
+брали одну и ту же из кэша.
+
+Ссылка кликабельна только в панели деталей: на карточке она уводила бы со
+страницы при промахе мимо кнопок.
 
 **Поиск и представления.** `useSubscriptionFilters` (features/subscriptions/hooks)
 держит всю логику поиска и группировки: фильтрация по названию подписки и названию
@@ -351,6 +379,16 @@ NODE_ENV=development
 `server/package.json` объявляет `"type": "module"`. Запуск на сервере —
 `pm2 start ecosystem.config.cjs --env production` (без флага возьмётся development-блок).
 
+## Версия сборки
+
+Vite вшивает в бандл версию из `package.json`, короткий git-хеш и время сборки
+(`define` в `vite.config.js` → `src/shared/config.js` → `AppVersion` в подвале).
+Хеш здесь важнее версии: `version` поднимают редко, а деплой случается каждый
+раз — по скриншоту бага видно, какой именно код на экране. Читать значения
+следует из `config.js`, а не из `__APP_*__` напрямую; в eslint они объявлены
+глобальными, потому что в исходниках таких переменных нет. Сборка вне git
+(скачанный архив, CI без истории) не падает — хеш становится `unknown`.
+
 ## Deployment
 
 Деплой — `./deploy.sh` на сервере (см. `DEPLOY.md`): бэкап базы и статики, `git pull`,
@@ -424,6 +462,17 @@ When adding API-dependent features:
 - modalType state switches between 'subscription' and 'category' forms
 - Edit mode controlled by editingSubscription/editingCategory state
 - selectedCategory pre-fills categoryId when adding subscription to specific category
+
+**Служебные разделы живут в меню под аватаром.** Настройки и импорт/экспорт
+открываются оттуда (`UserMenu` принимает `onOpenSettings`/`onOpenData`), а в
+липкой полосе остаётся только переключатель темы. Отдельная кнопка-шестерёнка
+в хедере отъедала ширину у заголовка: до `lg` кнопки лежат в строке, и каждая
+круглая цель в 44px — это заметная доля 320px.
+
+Импорт/экспорт — окно (`features/data/DataModal`), а не секция страницы.
+Секцией он занимал в ленте столько же места, сколько ежедневные разделы, хотя
+нужен раз в несколько месяцев, и на телефоне до него прокручивали весь список,
+архив и график трат. Роутера в проекте нет и ради двух экранов он не заводился.
 
 ### Authentication State
 - AuthContext handles: user state, token, login, logout, API composition

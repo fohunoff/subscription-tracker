@@ -25,6 +25,13 @@ const subscriptionSchema = new mongoose.Schema({
     required: true,
     min: 0
   },
+  // Ссылка на сайт сервиса — необязательная. По её хосту карточка показывает
+  // favicon: логотип узнаётся быстрее названия, а собственного пака иконок в
+  // трекере нет. Хранится уже нормализованной (см. utils/url.js).
+  url: {
+    type: String,
+    trim: true
+  },
   currency: {
     type: String,
     required: true,

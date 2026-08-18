@@ -23,7 +23,14 @@ export default [
     files: ['**/*.{js,jsx}'],
     languageOptions: {
       ecmaVersion: 2020,
-      globals: globals.browser,
+      // Версия сборки приходит литералами из define в vite.config.js —
+      // объявленных переменных с такими именами в исходниках нет
+      globals: {
+        ...globals.browser,
+        __APP_VERSION__: 'readonly',
+        __APP_COMMIT__: 'readonly',
+        __APP_BUILD_DATE__: 'readonly',
+      },
       parserOptions: {
         ecmaVersion: 'latest',
         ecmaFeatures: { jsx: true },

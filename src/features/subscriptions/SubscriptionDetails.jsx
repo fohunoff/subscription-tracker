@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { BellIcon, BellSlashIcon } from '@heroicons/react/24/outline';
-import { formatCurrency } from '../../shared/utils';
+import { BellIcon, BellSlashIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
+import { formatCurrency, getSiteHost } from '../../shared/utils';
+import { ServiceIcon } from '../../shared';
 import {
   getCycleMeta,
   getNextPaymentDate,
@@ -93,6 +94,7 @@ function SubscriptionDetails({
   const categoryName =
     subscription.category?.name || categories.find(cat => cat.id === subscription.categoryId)?.name;
 
+  const siteHost = getSiteHost(subscription.url);
   const isArchived = subscription.status === 'archived';
   // Срок истёк, но подписка осталась в списке — archiveOnEnd выключен
   const isExpired = !isArchived && isSubscriptionExpired(subscription);
@@ -104,27 +106,53 @@ function SubscriptionDetails({
 
   return (
     <div className="space-y-6">
-      {/* Заголовок: категория и цикл */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {subscription.category?.color && (
-          <span
-            className="w-3 h-3 rounded-full flex-shrink-0"
-            style={{ backgroundColor: subscription.category.color }}
-          />
-        )}
-        <span className="text-sm text-slate-500 dark:text-slate-400">
-          {categoryName || 'Без категории'} · {cycleMeta.label}
-        </span>
-        {isArchived && (
-          <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
-            в архиве
-          </span>
-        )}
-        {isExpired && (
-          <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-            срок истёк
-          </span>
-        )}
+      {/* Заголовок: иконка сервиса, категория, цикл и ссылка на сайт.
+          Название подписки сюда не дублируется — оно в шапке панели */}
+      <div className="flex items-start gap-3">
+        <ServiceIcon
+          url={subscription.url}
+          name={subscription.name}
+          color={subscription.category?.color}
+          size="lg"
+        />
+
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            {subscription.category?.color && (
+              <span
+                className="w-3 h-3 rounded-full flex-shrink-0"
+                style={{ backgroundColor: subscription.category.color }}
+              />
+            )}
+            <span className="text-sm text-slate-500 dark:text-slate-400">
+              {categoryName || 'Без категории'} · {cycleMeta.label}
+            </span>
+            {isArchived && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
+                в архиве
+              </span>
+            )}
+            {isExpired && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                срок истёк
+              </span>
+            )}
+          </div>
+
+          {/* Ссылка живёт только здесь, а не на карточке: в списке она увела бы
+              со страницы по случайному промаху мимо кнопок */}
+          {siteHost && (
+            <a
+              href={subscription.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-sm text-brand-primary hover:underline break-all"
+            >
+              {siteHost}
+              <ArrowTopRightOnSquareIcon className="h-4 w-4 flex-shrink-0" />
+            </a>
+          )}
+        </div>
       </div>
 
       {/* Стоимость */}

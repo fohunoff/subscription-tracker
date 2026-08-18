@@ -10,13 +10,13 @@ import {
   SubscriptionDetails,
   SubscriptionDetailsActions
 } from './features/subscriptions';
-import { ExportData } from './features/telegram';
+import { DataModal } from './features/data';
 import { SpendingSection, useSpending } from './features/stats';
-import { Modal, Drawer, TotalExpenses, CategorySkeleton, TotalExpensesSkeleton } from './shared';
+import { Modal, Drawer, TotalExpenses, CategorySkeleton, TotalExpensesSkeleton, AppVersion } from './shared';
 import { SettingsModal } from './features/settings';
 import { LoginPage, UserMenu } from './shared';
 import { useToast } from './features/notifications';
-import { Cog6ToothIcon, PlusIcon, TagIcon, SunIcon, MoonIcon } from '@heroicons/react/24/solid';
+import { PlusIcon, TagIcon, SunIcon, MoonIcon } from '@heroicons/react/24/solid';
 import { useBaseCurrency, useCurrencyRates, useTheme } from './features/settings/hooks';
 import { useSubscriptions, useSubscriptionFilters } from './features/subscriptions/hooks';
 import { DEFAULT_CURRENCY, getMonthlyCostInBase } from './shared/utils/currency';
@@ -67,6 +67,9 @@ function AppContent() {
   const [editingCategory, setEditingCategory] = React.useState(null);
   const [selectedCategory, setSelectedCategory] = React.useState(null);
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
+  // Импорт/экспорт — окно, а не секция на странице: действие редкое,
+  // а места в ленте занимало столько же, сколько ежедневные разделы
+  const [isDataOpen, setIsDataOpen] = React.useState(false);
   // Базовая валюта живёт на сервере: в ней считаются /api/stats и сводки
   // Telegram, поэтому одного localStorage мало.
   const [baseCurrency, setBaseCurrency] = useBaseCurrency({ api, user, updateUser, showToast });
@@ -372,16 +375,13 @@ function AppContent() {
           )}
         </button>
 
-        <button
-          onClick={() => setIsSettingsOpen(true)}
-          className="bg-white/80 dark:bg-slate-800/80 hover:bg-white dark:hover:bg-slate-800 shadow-lg rounded-full p-2.5 border border-slate-200 dark:border-slate-700 transition-colors"
-          aria-label="Открыть настройки"
-          type="button"
-        >
-          <Cog6ToothIcon className="h-6 w-6 lg:h-7 lg:w-7 text-slate-600 dark:text-slate-300" />
-        </button>
-
-        <UserMenu />
+        {/* Настройки и импорт/экспорт открываются из меню под аватаром:
+            отдельная кнопка-шестерёнка отъедала ширину у заголовка в липкой
+            полосе, а открывается она в лучшем случае раз в неделю */}
+        <UserMenu
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenData={() => setIsDataOpen(true)}
+        />
       </div>
 
       <div className="container mx-auto px-3 sm:px-4 pt-4 pb-8 sm:py-8 md:py-12 max-w-4xl flex-1 flex flex-col">
@@ -529,25 +529,11 @@ function AppContent() {
             onLoad={loadSpending}
             isDark={theme === 'dark'}
           />
-
-          {/* Секция импорта/экспорта подписок */}
-          <section aria-labelledby="import-export-heading" className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 md:p-8">
-            <h2 id="import-export-heading" className="text-xl sm:text-2xl font-semibold text-slate-700 dark:text-slate-200 mb-3">
-              Импорт / Экспорт подписок
-            </h2>
-            <p className="text-slate-600 dark:text-slate-300 mb-4">
-              Экспортируйте свои подписки в JSON-файл для резервного копирования или импортируйте данные из файла.
-            </p>
-            <ExportData
-              subscriptions={subscriptions}
-              onImport={handleImportSubscriptions}
-              categories={categories}
-            />
-          </section>
         </main>
         
         <footer className="mt-16 text-center text-sm text-slate-500 dark:text-slate-400 mb-2 sm:mb-4 md:mb-6 lg:mb-8 flex-shrink-0">
           <p>© {new Date().getFullYear()} Трекер расходов. Разработано с React + Express + TailwindCSS.</p>
+          <AppVersion />
         </footer>
       </div>
 
@@ -609,6 +595,15 @@ function AppContent() {
           />
         )}
       </Drawer>
+
+      {/* Импорт / экспорт подписок */}
+      <DataModal
+        isOpen={isDataOpen}
+        onClose={() => setIsDataOpen(false)}
+        subscriptions={subscriptions}
+        categories={categories}
+        onImport={handleImportSubscriptions}
+      />
 
       {/* Модальное окно для настроек */}
       <SettingsModal

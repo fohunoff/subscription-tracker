@@ -21,6 +21,9 @@ function SubscriptionForm({
   const [cost, setCost] = useState('');
   const [currency, setCurrency] = useState(defaultCurrency);
   const [cycle, setCycle] = useState('monthly');
+  // Ссылка на сайт сервиса — необязательная: по ней карточка показывает
+  // favicon вместо буквы названия. Схему дописывает сервер.
+  const [url, setUrl] = useState('');
   const [paymentDate, setPaymentDate] = useState(null);
   const [categoryId, setCategoryId] = useState('');
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
@@ -47,6 +50,7 @@ function SubscriptionForm({
       setCost(initialData.cost.toString());
       setCurrency(initialData.currency);
       setCycle(initialData.cycle);
+      setUrl(initialData.url || '');
       setCategoryId(initialData.categoryId);
       setNotificationsEnabled(initialData.notificationsEnabled || false);
       setNotifyDaysBefore(initialData.notifyDaysBefore || []);
@@ -71,6 +75,7 @@ function SubscriptionForm({
       setCost('');
       setCurrency(defaultCurrency);
       setCycle('monthly');
+      setUrl('');
       setPaymentDate(null);
       setNotificationsEnabled(false);
       setNotifyDaysBefore([]);
@@ -122,6 +127,9 @@ function SubscriptionForm({
       cost: parseFloat(cost),
       currency,
       cycle,
+      // Передаём всегда, в том числе пустой строкой: так сервер понимает,
+      // что ссылку убрали, — иначе снять её было бы нечем
+      url: url.trim(),
       categoryId
     };
 
@@ -188,6 +196,27 @@ function SubscriptionForm({
           required 
           autoFocus 
         />
+      </div>
+
+      <div>
+        <label htmlFor="subUrlModal" className={labelBaseClass}>
+          Ссылка на сервис <span className="text-slate-400 font-normal">(необязательно)</span>
+        </label>
+        {/* type="url" дал бы браузерную валидацию, но требовал бы схему:
+            «netflix.com» без https:// не проходит проверку, а вводят чаще
+            всего именно так. Схему дописывает сервер (server/utils/url.js) */}
+        <input
+          type="text"
+          id="subUrlModal"
+          inputMode="url"
+          placeholder="netflix.com"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          className={inputBaseClass}
+        />
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+          По ссылке подтянется иконка сервиса, а из карточки можно будет перейти на сайт
+        </p>
       </div>
 
       <div>

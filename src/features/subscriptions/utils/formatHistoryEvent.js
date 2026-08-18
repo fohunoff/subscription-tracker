@@ -26,6 +26,7 @@ const FIELD_LABELS = {
   cost: 'Цена',
   currency: 'Валюта',
   cycle: 'Цикл оплаты',
+  url: 'Ссылка на сервис',
   categoryId: 'Категория',
   paymentDay: 'День оплаты',
   fullPaymentDate: 'Дата платежа',
@@ -57,6 +58,14 @@ const formatValue = (field, value, { categories = [] } = {}) => {
     case 'fullPaymentDate':
     case 'endDate':
       return formatDay(value);
+    case 'url':
+      // В истории показываем только хост: полный URL с путём и параметрами
+      // растягивал строку «было → стало» на несколько экранов
+      try {
+        return new URL(String(value)).hostname.replace(/^www\./, '');
+      } catch {
+        return String(value);
+      }
     case 'notificationsEnabled':
       return value === true || value === 'true' ? 'включены' : 'выключены';
     case 'notifyDaysBefore':

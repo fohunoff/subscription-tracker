@@ -1,9 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { UserCircleIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
+import {
+  UserCircleIcon,
+  ArrowRightOnRectangleIcon,
+  Cog6ToothIcon,
+  ArrowsUpDownIcon
+} from '@heroicons/react/24/outline';
 import { ChevronDownIcon } from '@heroicons/react/24/solid';
 
-const UserMenu = () => {
+/**
+ * Меню под аватаром — единственная точка входа в служебные разделы:
+ * настройки и импорт/экспорт. Раньше настройки открывались отдельной кнопкой
+ * в хедере, но до lg кнопки живут в липкой полосе, и каждая лишняя отъедала
+ * ширину у заголовка — три круглые кнопки на 320px занимали треть строки.
+ */
+const UserMenu = ({ onOpenSettings, onOpenData }) => {
   const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef(null);
@@ -25,6 +36,18 @@ const UserMenu = () => {
     logout();
     setIsOpen(false);
   };
+
+  // Пункты меню закрывают выпадашку сами: окно открывается поверх неё,
+  // и оставшееся раскрытым меню перекрывало бы угол окна
+  const runAndClose = (action) => () => {
+    setIsOpen(false);
+    action?.();
+  };
+
+  // py-2.5 до sm — тап-цель в 44px: на телефоне пункты меню идут подряд,
+  // и в плотном списке промахнуться легко
+  const itemClass =
+    'flex items-center w-full px-4 py-2.5 sm:py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors';
 
   if (!user) return null;
 
@@ -63,10 +86,18 @@ const UserMenu = () => {
           </div>
 
           <div className="py-1">
-            <button
-              onClick={handleLogout}
-              className="flex items-center w-full px-4 py-2.5 sm:py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-            >
+            <button onClick={runAndClose(onOpenSettings)} className={itemClass} type="button">
+              <Cog6ToothIcon className="w-4 h-4 mr-3" />
+              Настройки
+            </button>
+            <button onClick={runAndClose(onOpenData)} className={itemClass} type="button">
+              <ArrowsUpDownIcon className="w-4 h-4 mr-3" />
+              Импорт / экспорт
+            </button>
+          </div>
+
+          <div className="py-1 border-t border-slate-200 dark:border-slate-700">
+            <button onClick={handleLogout} className={itemClass} type="button">
               <ArrowRightOnRectangleIcon className="w-4 h-4 mr-3" />
               Выйти
             </button>

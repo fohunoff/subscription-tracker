@@ -1,6 +1,7 @@
 import React from 'react';
 import { CalendarDaysIcon, TrashIcon, CurrencyDollarIcon, PencilSquareIcon, BellIcon, BellSlashIcon, ArchiveBoxIcon } from '@heroicons/react/24/outline';
 import { formatCurrency } from '../../shared/utils';
+import { ServiceIcon } from '../../shared';
 import { getCycleMeta, isSubscriptionExpired } from '../../shared/utils/cycle';
 
 // fallback currency symbols
@@ -31,8 +32,11 @@ function SubscriptionItem({ subscription, onDeleteSubscription, onEditSubscripti
 
   return (
     <Wrapper className="bg-slate-50 hover:bg-slate-100 p-4 rounded-lg shadow-sm border border-slate-200 transition-all duration-150 ease-in-out flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0 sm:space-x-4">
+      {/* Иконка внутри кликабельной области, а не отдельной колонкой: по ней
+          открываются те же детали, что и по названию, — на телефоне это
+          заметно более крупная цель, чем строка текста */}
       <div
-        className={`flex-1 min-w-0 ${onOpenDetails ? 'cursor-pointer' : ''}`}
+        className={`flex-1 min-w-0 flex items-start gap-3 ${onOpenDetails ? 'cursor-pointer' : ''}`}
         onClick={onOpenDetails ? () => onOpenDetails(subscription) : undefined}
         onKeyDown={onOpenDetails ? (e) => {
           if (e.key === 'Enter' || e.key === ' ') {
@@ -44,6 +48,14 @@ function SubscriptionItem({ subscription, onDeleteSubscription, onEditSubscripti
         tabIndex={onOpenDetails ? 0 : undefined}
         title={onOpenDetails ? 'Открыть детали подписки' : undefined}
       >
+        <ServiceIcon
+          url={subscription.url}
+          name={subscription.name}
+          color={subscription.category?.color}
+          className="mt-0.5"
+        />
+
+        <div className="min-w-0 flex-1">
         {/* На узких экранах название переносится на две строки, а не режется
             многоточием: «Мобильная связь МТС (архивный тариф…)» теряла в
             обрезке больше половины текста, а раскрыть её было негде */}
@@ -93,6 +105,7 @@ function SubscriptionItem({ subscription, onDeleteSubscription, onEditSubscripti
               : `Действует до ${endDateText}`}
           </p>
         )}
+        </div>
       </div>
       <div className="flex items-center space-x-2 self-start sm:self-center">
         {/* Иконка статуса уведомлений */}

@@ -7,6 +7,7 @@ const TRACKED_FIELDS = [
   'cost',
   'currency',
   'cycle',
+  'url',
   'categoryId',
   'paymentDay',
   'fullPaymentDate',

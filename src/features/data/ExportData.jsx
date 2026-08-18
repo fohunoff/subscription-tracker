@@ -46,6 +46,7 @@ function ExportData({ subscriptions, onImport, categories = [] }) {
         cost: sub.cost,
         currency: sub.currency,
         cycle: sub.cycle,
+        url: sub.url || null,
         payment_day: sub.paymentDay,
         next_payment_date: sub.fullPaymentDate,
         category_id: sub.categoryId,
@@ -96,6 +97,9 @@ function ExportData({ subscriptions, onImport, categories = [] }) {
             cost: sub.cost,
             currency: sub.currency,
             cycle: sub.cycle,
+            // Поля url нет в файлах, выгруженных до его появления, — тогда
+            // подписка импортируется без ссылки, а не с undefined в базе
+            url: sub.url || null,
             paymentDay: sub.payment_day,
             fullPaymentDate: sub.next_payment_date || null,
             categoryName: sub.category_name, // Для отображения в интерфейсе
@@ -136,7 +140,7 @@ function ExportData({ subscriptions, onImport, categories = [] }) {
   }, []);
 
   return (
-    <div className="mt-6 space-y-4">
+    <div className="mt-4 space-y-4">
       {/* Кнопки экспорта и импорта */}
       <div className="flex flex-wrap gap-3">
         <button

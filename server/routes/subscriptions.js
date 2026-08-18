@@ -2,6 +2,7 @@ import { Router } from 'express';
 import Subscription from '../models/Subscription.js';
 import Category from '../models/Category.js';
 import { validateSubscriptionData } from '../utils/index.js';
+import { normalizeSiteUrl } from '../utils/url.js';
 import { isValidCycle, CYCLE_VALUES, getNextPaymentDateAfter } from '../utils/cycle.js';
 import {
   logSubscriptionEvent,
@@ -24,6 +25,7 @@ const formatSubscription = (sub) => ({
   cost: sub.cost,
   currency: sub.currency,
   cycle: sub.cycle,
+  url: sub.url || null,
   paymentDay: sub.paymentDay,
   fullPaymentDate: sub.fullPaymentDate,
   status: sub.status || 'active',
@@ -73,7 +75,7 @@ router.get('/', authenticateToken, async (req, res) => {
 // Создание новой подписки
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    const { name, cost, currency, cycle, paymentDay, fullPaymentDate, endDate, archiveOnEnd, categoryId, notificationsEnabled, notifyDaysBefore } = req.body;
+    const { name, cost, currency, cycle, url, paymentDay, fullPaymentDate, endDate, archiveOnEnd, categoryId, notificationsEnabled, notifyDaysBefore } = req.body;
 
     // Проверяем, что категория существует и принадлежит пользователю
     const category = await Category.findOne({
@@ -91,6 +93,8 @@ router.post('/', authenticateToken, async (req, res) => {
       cost: parseFloat(cost),
       currency,
       cycle,
+      // Ссылка необязательна; нормализация бросит ошибку на неразбираемой строке
+      url: normalizeSiteUrl(url),
       categoryId
     };
 
@@ -156,7 +160,7 @@ router.post('/', authenticateToken, async (req, res) => {
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, cost, currency, cycle, paymentDay, fullPaymentDate, endDate, archiveOnEnd, categoryId, notificationsEnabled, notifyDaysBefore } = req.body;
+    const { name, cost, currency, cycle, url, paymentDay, fullPaymentDate, endDate, archiveOnEnd, categoryId, notificationsEnabled, notifyDaysBefore } = req.body;
 
     const subscription = await Subscription.findOne({ _id: id, userId: req.userDoc._id }).populate('categoryId');
     if (!subscription) {
@@ -204,6 +208,12 @@ router.put('/:id', authenticateToken, async (req, res) => {
         throw new Error(`Цикл оплаты должен быть одним из: ${CYCLE_VALUES.join(', ')}`);
       }
       updateData.cycle = cycle;
+    }
+    if (url !== undefined) {
+      // Пустая строка снимает ссылку, поэтому пишем результат как есть —
+      // включая null: undefined mongoose выбросил бы из update, и очистить
+      // однажды сохранённую ссылку стало бы нечем.
+      updateData.url = normalizeSiteUrl(url);
     }
     if (endDate !== undefined) {
       let parsedEndDate = null;
@@ -540,7 +550,8 @@ router.post('/import', authenticateToken, async (req, res) => {
             name: sub.name.trim(),
             cost: parseFloat(sub.cost),
             currency: sub.currency || 'RUB',
-            cycle: sub.cycle || 'monthly'
+            cycle: sub.cycle || 'monthly',
+            url: normalizeSiteUrl(sub.url)
           };
 
           // Добавляем поля даты только если категория поддерживает напоминания
