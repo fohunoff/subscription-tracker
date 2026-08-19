@@ -10,7 +10,7 @@ import {
   getSubscriptionHistory
 } from '../services/subscriptionEvents.js';
 import { logDuePayments } from '../services/subscriptionLifecycle.js';
-import { rebuildEstimatedPayments } from '../services/paymentBackfill.js';
+import { syncEstimatedPayments } from '../services/paymentBackfill.js';
 import authenticateToken from '../middlewares/authenticateToken.js';
 
 const router = Router();
@@ -142,12 +142,21 @@ router.post('/', authenticateToken, async (req, res) => {
       type: 'created'
     });
 
+    // Дата старта бывает намного раньше дня, когда подписку завели в трекере:
+    // «плачу за это с 2015 года» — обычный случай, а не край. Достраиваем её
+    // прошлое сразу, иначе в тратах подписка появилась бы только с сегодняшнего
+    // дня и до запуска скрипта руками выглядела бы как потеря истории.
+    const estimatedPayments = await syncEstimatedPayments(newSubscription);
+
     // Получаем созданную подписку с категорией
     const populatedSubscription = await Subscription.findById(newSubscription._id).populate('categoryId');
 
     res.status(201).json({
       success: true,
       subscription: formatSubscription(populatedSubscription),
+      // Сколько прошлых платежей восстановлено — клиент говорит об этом в тосте:
+      // сумма трат выросла не сама по себе
+      estimatedPayments,
       message: 'Подписка создана успешно'
     });
   } catch (error) {
@@ -294,7 +303,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
     let recalculatedPayments = 0;
     if (startChanged || cycleChanged) {
-      recalculatedPayments = await rebuildEstimatedPayments(updatedSubscription);
+      recalculatedPayments = await syncEstimatedPayments(updatedSubscription, { reset: true });
     }
 
     res.json({
@@ -532,6 +541,7 @@ router.post('/import', authenticateToken, async (req, res) => {
     }
 
     let addedCount = 0;
+    let estimatedPayments = 0;
     const errors = [];
 
     for (const [index, sub] of importedSubs.entries()) {
@@ -561,12 +571,20 @@ router.post('/import', authenticateToken, async (req, res) => {
           }
 
           validateSubscriptionData(normalizedSub, targetCategory.hasReminders);
-          const created = await Subscription.create(normalizedSub);
+          const created = await Subscription.create({
+            ...normalizedSub,
+            // Как и при создании вручную: автозапись начинается с этого момента,
+            // всё, что было раньше, достраивает бэкфилл ниже
+            paymentsLoggedThrough: new Date()
+          });
           await logSubscriptionEvent({
             userId: req.userDoc._id,
             subscription: created,
             type: 'created'
           });
+          // Импортируют обычно давно существующие подписки — их прошлое нужно
+          // в тратах так же, как у заведённых вручную
+          estimatedPayments += await syncEstimatedPayments(created);
           addedCount++;
         }
       } catch (error) {
@@ -577,8 +595,15 @@ router.post('/import', authenticateToken, async (req, res) => {
     const response = {
       success: true,
       message: `Импортировано ${addedCount} подписок в категорию "${targetCategory.name}"`,
-      addedCount
+      addedCount,
+      estimatedPayments
     };
+
+    // Импортируют давно существующие подписки: без этой строки восстановленные
+    // траты за прошлые месяцы выглядели бы взявшимися ниоткуда
+    if (estimatedPayments > 0) {
+      response.message += `, восстановлено прошлых платежей: ${estimatedPayments}`;
+    }
 
     if (errors.length > 0) {
       response.errors = errors;

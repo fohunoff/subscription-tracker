@@ -25,6 +25,8 @@ import {
 
 const formatAmount = (changes) => `${changes.amount} ${changes.currency}`;
 
+const formatDate = (value) => (value ? new Date(value).toISOString().slice(0, 10) : null);
+
 const paymentsWord = (count) => {
   const lastTwo = count % 100;
   const last = count % 10;
@@ -54,7 +56,17 @@ const run = async () => {
   const total = await backfillAllPayments({
     apply,
     onProgress: (subscription, created) => {
-      if (created.length === 0) return;
+      if (created.length === 0) {
+        // Пустой результат — самая частая жалоба («трат до такого-то года нет»),
+        // и почти всегда дело в исходных данных: не указана дата старта либо
+        // всё прошлое уже записано. Печатаем то, из чего скрипт считал.
+        console.log(
+          `  «${subscription.name}»: нечего добавить ` +
+          `(старт: ${formatDate(subscription.fullPaymentDate) || 'не указан'}, ` +
+          `учтено по: ${formatDate(subscription.paymentsLoggedThrough) || 'не отмечено'})`
+        );
+        return;
+      }
 
       const first = created[0];
       const last = created[created.length - 1];

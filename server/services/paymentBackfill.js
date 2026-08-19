@@ -171,21 +171,26 @@ export const removeEstimatedPayments = async (subscriptionId = null) => {
 };
 
 /**
- * Пересобирает оценки одной подписки: сносит прежние и строит заново.
+ * Достраивает оценки одной подписки прямо из роута.
  *
- * Вызывается, когда сменилась дата старта или цикл — от них считаются все даты
- * прошлых платежей, и старая оценка после правки описывала бы уже не эту
- * подписку. Ошибки не пробрасываются: правка подписки не должна падать из-за
- * пересчёта истории, а восстановить её всегда можно скриптом с --reset.
+ * Нужен в двух случаях. При создании и импорте: пользователь указывает дату
+ * старта, и она бывает намного раньше дня, когда подписку завели в трекере, —
+ * без бэкфилла её прошлое не появилось бы вовсе, пока кто-нибудь не запустит
+ * скрипт руками. При правке даты старта или цикла — с `reset`: от них
+ * считаются все даты прошлых платежей, и прежняя оценка после правки описывала
+ * бы уже не эту подписку.
+ *
+ * Ошибки не пробрасываются: сохранение подписки не должно падать из-за
+ * восстановления истории, а пересобрать её всегда можно скриптом с --reset.
  */
-export const rebuildEstimatedPayments = async (subscription, { now = new Date() } = {}) => {
+export const syncEstimatedPayments = async (subscription, { reset = false, now = new Date() } = {}) => {
   try {
-    await removeEstimatedPayments(subscription._id);
+    if (reset) await removeEstimatedPayments(subscription._id);
     const created = await backfillSubscriptionPayments(subscription, { apply: true, now });
     return created.length;
   } catch (error) {
     console.error(
-      `[Backfill] Не удалось пересобрать платежи подписки ${subscription._id}:`,
+      `[Backfill] Не удалось восстановить платежи подписки ${subscription._id}:`,
       error.message
     );
     return 0;

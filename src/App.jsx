@@ -176,11 +176,17 @@ function AppContent() {
     if (!api) return;
 
     try {
-      const createdSubscription = await api.createSubscription(newSub);
+      const { subscription: createdSubscription, estimatedPayments } =
+        await api.createSubscription(newSub);
       setSubscriptions(prev => [...prev, createdSubscription]);
       setIsModalOpen(false);
       setSelectedCategory(null);
-      showToast('Подписка добавлена!', 'success');
+      showToast(
+        estimatedPayments > 0
+          ? `Подписка добавлена, восстановлено прошлых платежей: ${estimatedPayments}`
+          : 'Подписка добавлена!',
+        'success'
+      );
     } catch (error) {
       console.error('Ошибка добавления подписки:', error);
       showToast(error.message || 'Ошибка добавления подписки', 'error');

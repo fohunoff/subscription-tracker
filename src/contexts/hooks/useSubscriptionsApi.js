@@ -102,7 +102,12 @@ export function useSubscriptionsApi(API_URL, token) {
       }
       
       const data = await response.json();
-      return data.subscription;
+      // Кроме самой подписки сервер сообщает, сколько прошлых платежей
+      // восстановлено по дате старта: она бывает намного раньше сегодняшнего дня
+      return {
+        subscription: data.subscription,
+        estimatedPayments: data.estimatedPayments || 0
+      };
     };
 
     // Обновить подписку. Кроме самой подписки сервер сообщает, сколько прошлых
